@@ -184,12 +184,12 @@ function validateSingleRegion(width, height, horizontal, vertical) {
 }
 
 function generateCarvingLoop(width, height, horizontal, vertical) {
-    // Start with all cells as inside, then carve away cells from the edges
+    // Start with all cells as inside, then carve away cells
     const inside = Array(height).fill(null).map(() => Array(width).fill(true));
 
-    // Target: carve until less than 10% of cells have a score of 0
+    // Target: carve away about 1/3 of cells
     const totalCells = width * height;
-    const maxZeroPercent = 0.10;
+    const targetCarve = Math.floor(totalCells / 3);
 
     // Track carved cells
     const carved = new Set();
@@ -203,17 +203,17 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return array;
     };
 
-    // Get all edge cells as potential candidates
-    const getAllEdgeCells = () => {
-        const edges = [];
+    // Get all available cells (not just edges)
+    const getAllAvailableCells = () => {
+        const available = [];
         for (let row = 0; row < height; row++) {
             for (let col = 0; col < width; col++) {
-                if ((row === 0 || row === height - 1 || col === 0 || col === width - 1) && inside[row][col]) {
-                    edges.push([row, col]);
+                if (inside[row][col]) {
+                    available.push([row, col]);
                 }
             }
         }
-        return edges;
+        return available;
     };
 
     // Get cells adjacent to carved cells
@@ -238,7 +238,7 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return adjacent;
     };
 
-    // Get cells NOT adjacent to carved cells (for fresh start)
+    // Get cells NOT adjacent to carved cells
     const getNonAdjacentCells = () => {
         const nonAdjacent = [];
         const adjacentSet = new Set();
@@ -256,57 +256,16 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             }
         }
 
-        // Get edge cells that are NOT adjacent to carved cells
-        const edges = getAllEdgeCells();
-        for (const [r, c] of edges) {
-            const key = \`\${r},\${c}\`;
-            if (!adjacentSet.has(key) && !carved.has(key)) {
-                nonAdjacent.push([r, c]);
+        // Get all cells that are NOT adjacent to carved cells
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                const key = \`\${row},\${col}\`;
+                if (inside[row][col] && !adjacentSet.has(key) && !carved.has(key)) {
+                    nonAdjacent.push([row, col]);
+                }
             }
         }
         return nonAdjacent;
-    };
-
-    // Helper function to calculate scores and count zeros
-    const calculateZeroPercentage = () => {
-        // Build loop edges first
-        for (let i = 0; i <= height; i++) {
-            for (let j = 0; j < width; j++) horizontal[i][j] = 0;
-        }
-        for (let i = 0; i < height; i++) {
-            for (let j = 0; j <= width; j++) vertical[i][j] = 0;
-        }
-
-        // Draw loop around boundary of inside cells
-        for (let row = 0; row < height; row++) {
-            for (let col = 0; col < width; col++) {
-                if (inside[row][col]) {
-                    if (row === 0 || !inside[row - 1][col]) horizontal[row][col] = 1;
-                    if (row === height - 1 || !inside[row + 1][col]) horizontal[row + 1][col] = 1;
-                    if (col === 0 || !inside[row][col - 1]) vertical[row][col] = 1;
-                    if (col === width - 1 || !inside[row][col + 1]) vertical[row][col + 1] = 1;
-                }
-            }
-        }
-
-        // Count cells with score of 0 among inside cells
-        let zeroCount = 0;
-        let insideCount = 0;
-        for (let row = 0; row < height; row++) {
-            for (let col = 0; col < width; col++) {
-                if (inside[row][col]) {
-                    insideCount++;
-                    let count = 0;
-                    if (horizontal[row][col] === 1) count++;
-                    if (horizontal[row + 1][col] === 1) count++;
-                    if (vertical[row][col] === 1) count++;
-                    if (vertical[row][col + 1] === 1) count++;
-                    if (count === 0) zeroCount++;
-                }
-            }
-        }
-
-        return insideCount > 0 ? zeroCount / insideCount : 0;
     };
 
     // Helper function to check if removing a cell would clear an entire row or column
@@ -413,18 +372,8 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
     let iterations = 0;
     const maxIterations = totalCells * 2; // Safety limit
 
-    while (iterations < maxIterations) {
+    while (iterations < maxIterations && carved.size < targetCarve) {
         iterations++;
-
-        // Check if we've reached our target (check every 5 iterations to avoid too much computation)
-        if (iterations % 5 === 0) {
-            const zeroPercent = calculateZeroPercentage();
-            if (zeroPercent < maxZeroPercent && carved.size > 3) {
-                // We've achieved our goal
-                console.log(\`Worker: Target reached with \${carved.size} cells carved\`);
-                break;
-            }
-        }
 
         let row, col;
         let candidates = [];
@@ -432,8 +381,8 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         // 50% chance: carve adjacent to already carved cell
         // 50% chance: carve a non-adjacent cell (fresh region)
         if (carved.size === 0) {
-            // First carve: pick any edge cell
-            candidates = getAllEdgeCells();
+            // First carve: pick any cell
+            candidates = getAllAvailableCells();
         } else if (Math.random() < 0.5) {
             // Try to carve adjacent to existing carved cells
             candidates = getAdjacentToCarved();
@@ -481,7 +430,9 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         carved.add(key);
     }
 
-    // Final loop building (already done in calculateZeroPercentage, but ensure it's set)
+    console.log(\`Worker: Carved \${carved.size} cells out of \${totalCells} (target was \${targetCarve})\`);
+
+    // Final loop building
     for (let i = 0; i <= height; i++) {
         for (let j = 0; j < width; j++) horizontal[i][j] = 0;
     }
