@@ -76,6 +76,7 @@ class SlitherlinkGame {
 
         document.getElementById('clearBtn').addEventListener('click', () => this.clearBoard());
         document.getElementById('checkBtn').addEventListener('click', () => this.checkSolution());
+        document.getElementById('showSolutionBtn').addEventListener('click', () => this.showSolution());
         document.getElementById('newPuzzleBtn').addEventListener('click', () => this.nextPuzzle());
     }
 
@@ -255,6 +256,29 @@ class SlitherlinkGame {
         this.showMessage('Board cleared!', 'info');
     }
 
+    showSolution() {
+        if (!this.solution) {
+            this.showMessage('No solution available. Generate a new puzzle first!', 'error');
+            return;
+        }
+
+        // Copy the solution to the current board
+        for (let row = 0; row <= this.gridHeight; row++) {
+            for (let col = 0; col < this.gridWidth; col++) {
+                this.horizontalEdges[row][col] = this.solution.horizontal[row][col];
+            }
+        }
+
+        for (let row = 0; row < this.gridHeight; row++) {
+            for (let col = 0; col <= this.gridWidth; col++) {
+                this.verticalEdges[row][col] = this.solution.vertical[row][col];
+            }
+        }
+
+        this.draw();
+        this.showMessage('Solution displayed!', 'success');
+    }
+
     nextPuzzle() {
         // Generate a new random puzzle (always 6x6)
         const width = 6;
@@ -264,6 +288,7 @@ class SlitherlinkGame {
         this.gridWidth = newPuzzle.width;
         this.gridHeight = newPuzzle.height;
         this.numbers = newPuzzle.numbers;
+        this.solution = newPuzzle.solution;  // Store solution
 
         // Clear the board
         this.horizontalEdges = Array(this.gridHeight + 1).fill(null)
@@ -404,7 +429,8 @@ class SlitherlinkGame {
         return {
             width: width,
             height: height,
-            numbers: clueNumbers
+            numbers: clueNumbers,
+            solution: solution  // Store the solution
         };
     }
 
