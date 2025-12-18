@@ -187,10 +187,9 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
     // Start with all cells as inside, then carve away cells from the edges
     const inside = Array(height).fill(null).map(() => Array(width).fill(true));
 
-    // Target: remove 20-25% of cells
+    // Target: carve until less than 15% of cells have a score of 0
     const totalCells = width * height;
-    const targetRemove = Math.floor(totalCells * (0.20 + Math.random() * 0.05));
-    let removed = 0;
+    const maxZeroPercent = 0.15;
 
     // Start from edge cells - these are candidates for removal
     const candidates = [];
@@ -215,9 +214,63 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
     };
     shuffle(candidates);
 
+    // Helper function to calculate scores and count zeros
+    const calculateZeroPercentage = () => {
+        // Build loop edges first
+        for (let i = 0; i <= height; i++) {
+            for (let j = 0; j < width; j++) horizontal[i][j] = 0;
+        }
+        for (let i = 0; i < height; i++) {
+            for (let j = 0; j <= width; j++) vertical[i][j] = 0;
+        }
+
+        // Draw loop around boundary of inside cells
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (inside[row][col]) {
+                    if (row === 0 || !inside[row - 1][col]) horizontal[row][col] = 1;
+                    if (row === height - 1 || !inside[row + 1][col]) horizontal[row + 1][col] = 1;
+                    if (col === 0 || !inside[row][col - 1]) vertical[row][col] = 1;
+                    if (col === width - 1 || !inside[row][col + 1]) vertical[row][col + 1] = 1;
+                }
+            }
+        }
+
+        // Count cells with score of 0 among inside cells
+        let zeroCount = 0;
+        let insideCount = 0;
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (inside[row][col]) {
+                    insideCount++;
+                    let count = 0;
+                    if (horizontal[row][col] === 1) count++;
+                    if (horizontal[row + 1][col] === 1) count++;
+                    if (vertical[row][col] === 1) count++;
+                    if (vertical[row][col + 1] === 1) count++;
+                    if (count === 0) zeroCount++;
+                }
+            }
+        }
+
+        return insideCount > 0 ? zeroCount / insideCount : 0;
+    };
+
     // Remove cells iteratively
     const visited = new Set();
-    while (removed < targetRemove && (candidates.length > 0 || adjacentCandidates.length > 0)) {
+    let iterations = 0;
+    const maxIterations = totalCells; // Safety limit
+
+    while (iterations < maxIterations && (candidates.length > 0 || adjacentCandidates.length > 0)) {
+        iterations++;
+
+        // Check if we've reached our target
+        const zeroPercent = calculateZeroPercentage();
+        if (zeroPercent < maxZeroPercent && iterations > 5) {
+            // We've achieved our goal
+            break;
+        }
+
         let row, col;
 
         // 50% chance to carve adjacent to previously carved cell if available
@@ -236,7 +289,6 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
         // Mark as outside
         inside[row][col] = false;
-        removed++;
 
         // Add adjacent inside cells as new adjacent candidates
         const neighbors = [
@@ -257,27 +309,21 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         }
     }
 
-    // Now build the loop around the boundary of inside cells
-    // For each inside cell, draw lines on edges that border outside cells or grid boundary
+    // Final loop building (already done in calculateZeroPercentage, but ensure it's set)
+    for (let i = 0; i <= height; i++) {
+        for (let j = 0; j < width; j++) horizontal[i][j] = 0;
+    }
+    for (let i = 0; i < height; i++) {
+        for (let j = 0; j <= width; j++) vertical[i][j] = 0;
+    }
+
     for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
             if (inside[row][col]) {
-                // Check top edge
-                if (row === 0 || !inside[row - 1][col]) {
-                    horizontal[row][col] = 1;
-                }
-                // Check bottom edge
-                if (row === height - 1 || !inside[row + 1][col]) {
-                    horizontal[row + 1][col] = 1;
-                }
-                // Check left edge
-                if (col === 0 || !inside[row][col - 1]) {
-                    vertical[row][col] = 1;
-                }
-                // Check right edge
-                if (col === width - 1 || !inside[row][col + 1]) {
-                    vertical[row][col + 1] = 1;
-                }
+                if (row === 0 || !inside[row - 1][col]) horizontal[row][col] = 1;
+                if (row === height - 1 || !inside[row + 1][col]) horizontal[row + 1][col] = 1;
+                if (col === 0 || !inside[row][col - 1]) vertical[row][col] = 1;
+                if (col === width - 1 || !inside[row][col + 1]) vertical[row][col + 1] = 1;
             }
         }
     }
