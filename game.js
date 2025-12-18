@@ -110,28 +110,30 @@ class SlitherlinkGame {
     getEdgeFromPosition(x, y) {
         const threshold = 15;
 
-        // Check horizontal edges
+        // Check horizontal edges (between dots on the same row)
         for (let row = 0; row <= this.gridHeight; row++) {
-            const edgeY = row * this.cellSize + this.cellSize / 2;
+            const edgeY = (row + 1) * this.cellSize;  // Y position of the dots
             if (Math.abs(y - edgeY) < threshold) {
                 for (let col = 0; col < this.gridWidth; col++) {
-                    const edgeX = (col + 1) * this.cellSize;
-                    const centerX = edgeX + this.cellSize / 2;
-                    if (x > edgeX - threshold && x < edgeX + this.cellSize + threshold) {
+                    const x1 = (col + 1) * this.cellSize;
+                    const x2 = (col + 2) * this.cellSize;
+                    const centerX = (x1 + x2) / 2;
+                    if (x > x1 - threshold && x < x2 + threshold) {
                         return { type: 'horizontal', row, col };
                     }
                 }
             }
         }
 
-        // Check vertical edges
+        // Check vertical edges (between dots on the same column)
         for (let row = 0; row < this.gridHeight; row++) {
-            const edgeY = (row + 1) * this.cellSize;
-            const centerY = edgeY + this.cellSize / 2;
+            const y1 = (row + 1) * this.cellSize;
+            const y2 = (row + 2) * this.cellSize;
+            const centerY = (y1 + y2) / 2;
             for (let col = 0; col <= this.gridWidth; col++) {
-                const edgeX = col * this.cellSize + this.cellSize / 2;
+                const edgeX = (col + 1) * this.cellSize;  // X position of the dots
                 if (Math.abs(x - edgeX) < threshold &&
-                    y > edgeY - threshold && y < edgeY + this.cellSize + threshold) {
+                    y > y1 - threshold && y < y2 + threshold) {
                     return { type: 'vertical', row, col };
                 }
             }
