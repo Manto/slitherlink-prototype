@@ -256,6 +256,25 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return insideCount > 0 ? zeroCount / insideCount : 0;
     };
 
+    // Helper function to check if removing a cell would clear an entire row or column
+    const wouldClearRowOrColumn = (r, c) => {
+        // Check if this is the last cell in its row
+        let rowCount = 0;
+        for (let col = 0; col < width; col++) {
+            if (inside[r][col]) rowCount++;
+        }
+        if (rowCount <= 1) return true; // This is the last or only cell in row
+
+        // Check if this is the last cell in its column
+        let colCount = 0;
+        for (let row = 0; row < height; row++) {
+            if (inside[row][c]) colCount++;
+        }
+        if (colCount <= 1) return true; // This is the last or only cell in column
+
+        return false;
+    };
+
     // Remove cells iteratively
     const visited = new Set();
     let iterations = 0;
@@ -286,6 +305,11 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
         if (visited.has(key) || !inside[row][col]) continue;
         visited.add(key);
+
+        // Don't carve if it would clear an entire row or column
+        if (wouldClearRowOrColumn(row, col)) {
+            continue;
+        }
 
         // Mark as outside
         inside[row][col] = false;
