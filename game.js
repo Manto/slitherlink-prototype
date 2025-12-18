@@ -191,20 +191,10 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
     const totalCells = width * height;
     const maxZeroPercent = 0.15;
 
-    // Start from edge cells - these are candidates for removal
-    const candidates = [];
-    const adjacentCandidates = []; // Cells adjacent to recently carved cells
+    // Track carved cells
+    const carved = new Set();
 
-    // Add all edge cells as initial candidates
-    for (let row = 0; row < height; row++) {
-        for (let col = 0; col < width; col++) {
-            if (row === 0 || row === height - 1 || col === 0 || col === width - 1) {
-                candidates.push([row, col]);
-            }
-        }
-    }
-
-    // Shuffle candidates for randomness
+    // Shuffle helper
     const shuffle = (array) => {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -212,7 +202,70 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         }
         return array;
     };
-    shuffle(candidates);
+
+    // Get all edge cells as potential candidates
+    const getAllEdgeCells = () => {
+        const edges = [];
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if ((row === 0 || row === height - 1 || col === 0 || col === width - 1) && inside[row][col]) {
+                    edges.push([row, col]);
+                }
+            }
+        }
+        return edges;
+    };
+
+    // Get cells adjacent to carved cells
+    const getAdjacentToCarved = () => {
+        const adjacent = [];
+        for (const key of carved) {
+            const [r, c] = key.split(',').map(Number);
+            const neighbors = [
+                [r - 1, c],
+                [r + 1, c],
+                [r, c - 1],
+                [r, c + 1]
+            ];
+            for (const [nr, nc] of neighbors) {
+                const nKey = `${nr},${nc}`;
+                if (nr >= 0 && nr < height && nc >= 0 && nc < width &&
+                    inside[nr][nc] && !carved.has(nKey)) {
+                    adjacent.push([nr, nc]);
+                }
+            }
+        }
+        return adjacent;
+    };
+
+    // Get cells NOT adjacent to carved cells (for fresh start)
+    const getNonAdjacentCells = () => {
+        const nonAdjacent = [];
+        const adjacentSet = new Set();
+
+        // Mark all cells adjacent to carved cells
+        for (const key of carved) {
+            const [r, c] = key.split(',').map(Number);
+            const neighbors = [
+                [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]
+            ];
+            for (const [nr, nc] of neighbors) {
+                if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
+                    adjacentSet.add(`${nr},${nc}`);
+                }
+            }
+        }
+
+        // Get edge cells that are NOT adjacent to carved cells
+        const edges = getAllEdgeCells();
+        for (const [r, c] of edges) {
+            const key = `${r},${c}`;
+            if (!adjacentSet.has(key) && !carved.has(key)) {
+                nonAdjacent.push([r, c]);
+            }
+        }
+        return nonAdjacent;
+    };
 
     // Helper function to calculate scores and count zeros
     const calculateZeroPercentage = () => {
@@ -357,35 +410,56 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
     };
 
     // Remove cells iteratively
-    const visited = new Set();
     let iterations = 0;
-    const maxIterations = totalCells; // Safety limit
+    const maxIterations = totalCells * 2; // Safety limit
 
-    while (iterations < maxIterations && (candidates.length > 0 || adjacentCandidates.length > 0)) {
+    while (iterations < maxIterations) {
         iterations++;
 
-        // Check if we've reached our target
-        const zeroPercent = calculateZeroPercentage();
-        if (zeroPercent < maxZeroPercent && iterations > 5) {
-            // We've achieved our goal
-            break;
+        // Check if we've reached our target (check every 5 iterations to avoid too much computation)
+        if (iterations % 5 === 0) {
+            const zeroPercent = calculateZeroPercentage();
+            if (zeroPercent < maxZeroPercent && carved.size > 3) {
+                // We've achieved our goal
+                console.log(\`Worker: Target reached with \${carved.size} cells carved\`);
+                break;
+            }
         }
 
         let row, col;
+        let candidates = [];
 
-        // 50% chance to carve adjacent to previously carved cell if available
-        if (adjacentCandidates.length > 0 && Math.random() > 0.5) {
-            [row, col] = adjacentCandidates.shift();
-        } else if (candidates.length > 0) {
-            [row, col] = candidates.shift();
+        // 50% chance: carve adjacent to already carved cell
+        // 50% chance: carve a non-adjacent cell (fresh region)
+        if (carved.size === 0) {
+            // First carve: pick any edge cell
+            candidates = getAllEdgeCells();
+        } else if (Math.random() < 0.5) {
+            // Try to carve adjacent to existing carved cells
+            candidates = getAdjacentToCarved();
         } else {
-            [row, col] = adjacentCandidates.shift();
+            // Try to carve non-adjacent (start new region)
+            candidates = getNonAdjacentCells();
+            // If no non-adjacent cells available, fall back to adjacent
+            if (candidates.length === 0) {
+                candidates = getAdjacentToCarved();
+            }
         }
+
+        // If no candidates available at all, stop
+        if (candidates.length === 0) {
+            console.log(\`Worker: No more candidates available\`);
+            break;
+        }
+
+        // Shuffle and pick one
+        shuffle(candidates);
+        [row, col] = candidates[0];
 
         const key = \`\${row},\${col}\`;
 
-        if (visited.has(key) || !inside[row][col]) continue;
-        visited.add(key);
+        // Skip if already carved
+        if (carved.has(key) || !inside[row][col]) continue;
 
         // Don't carve if it would clear an entire row or column
         if (wouldClearRowOrColumn(row, col)) {
@@ -402,25 +476,8 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             continue;
         }
 
-        // Keep the cell carved (already set to false above)
-
-        // Add adjacent inside cells as new adjacent candidates
-        const neighbors = [
-            [row - 1, col],
-            [row + 1, col],
-            [row, col - 1],
-            [row, col + 1]
-        ];
-
-        shuffle(neighbors);
-        for (const [nr, nc] of neighbors) {
-            if (nr >= 0 && nr < height && nc >= 0 && nc < width && inside[nr][nc]) {
-                const neighborKey = \`\${nr},\${nc}\`;
-                if (!visited.has(neighborKey) && Math.random() > 0.3) {
-                    adjacentCandidates.push([nr, nc]);
-                }
-            }
-        }
+        // Keep the cell carved
+        carved.add(key);
     }
 
     // Final loop building (already done in calculateZeroPercentage, but ensure it's set)
