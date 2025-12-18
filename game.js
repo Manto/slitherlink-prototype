@@ -435,7 +435,7 @@ class SlitherlinkGame {
     }
 
     generateRandomLoop(width, height) {
-        // Generate a random valid loop with many turns
+        // Generate a random valid loop with many turns that creates only ONE enclosed region
         const horizontal = Array(height + 1).fill(null).map(() => Array(width).fill(0));
         const vertical = Array(height).fill(null).map(() => Array(width + 1).fill(0));
 
@@ -453,7 +453,7 @@ class SlitherlinkGame {
         let success = false;
         let attempts = 0;
 
-        while (!success && attempts < 5) {
+        while (!success && attempts < 10) {
             // Clear previous attempt
             for (let i = 0; i <= height; i++) {
                 for (let j = 0; j < width; j++) {
@@ -473,15 +473,124 @@ class SlitherlinkGame {
                 success = this.generateRecursiveLoop(width, height, horizontal, vertical);
             }
 
+            // Validate that the loop creates only ONE enclosed region
+            if (success && !this.validateSingleRegion(width, height, horizontal, vertical)) {
+                success = false; // Reject loops with multiple enclosed regions
+            }
+
             attempts++;
         }
 
-        // If all attempts failed, use enhanced rectangular loop
+        // If all attempts failed, use simple rectangular loop (always valid)
         if (!success) {
-            this.generateEnhancedRectangularLoop(width, height, horizontal, vertical);
+            this.generateSimpleRectangularLoop(width, height, horizontal, vertical);
         }
 
         return { horizontal, vertical };
+    }
+
+    validateSingleRegion(width, height, horizontal, vertical) {
+        // Check that the loop divides the grid into exactly 2 regions (inside and outside)
+        // Use flood fill from outside to mark all outside cells
+        const outside = Array(height).fill(null).map(() => Array(width).fill(false));
+
+        // Flood fill from all edges
+        const queue = [];
+
+        // Add all edge cells that aren't blocked
+        for (let row = 0; row < height; row++) {
+            // Left edge
+            if (vertical[row][0] === 0) {
+                queue.push([row, 0]);
+                outside[row][0] = true;
+            }
+            // Right edge
+            if (vertical[row][width] === 0) {
+                queue.push([row, width - 1]);
+                outside[row][width - 1] = true;
+            }
+        }
+
+        for (let col = 0; col < width; col++) {
+            // Top edge
+            if (horizontal[0][col] === 0) {
+                queue.push([0, col]);
+                outside[0][col] = true;
+            }
+            // Bottom edge
+            if (horizontal[height][col] === 0) {
+                queue.push([height - 1, col]);
+                outside[height - 1][col] = true;
+            }
+        }
+
+        // Flood fill to find all outside cells
+        while (queue.length > 0) {
+            const [row, col] = queue.shift();
+
+            // Try all 4 directions
+            const neighbors = [
+                [row - 1, col, horizontal[row][col]],      // up
+                [row + 1, col, horizontal[row + 1][col]],  // down
+                [row, col - 1, vertical[row][col]],        // left
+                [row, col + 1, vertical[row][col + 1]]     // right
+            ];
+
+            for (const [newRow, newCol, edge] of neighbors) {
+                if (newRow >= 0 && newRow < height &&
+                    newCol >= 0 && newCol < width &&
+                    !outside[newRow][newCol] && edge === 0) {
+                    outside[newRow][newCol] = true;
+                    queue.push([newRow, newCol]);
+                }
+            }
+        }
+
+        // Count inside regions using flood fill
+        const visited = Array(height).fill(null).map(() => Array(width).fill(false));
+        let insideRegions = 0;
+
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (!outside[row][col] && !visited[row][col]) {
+                    // Found a new inside region
+                    insideRegions++;
+
+                    if (insideRegions > 1) {
+                        return false; // Multiple enclosed regions - invalid!
+                    }
+
+                    // Flood fill this inside region
+                    const regionQueue = [[row, col]];
+                    visited[row][col] = true;
+
+                    while (regionQueue.length > 0) {
+                        const [r, c] = regionQueue.shift();
+
+                        const neighbors = [
+                            [r - 1, c, horizontal[r][c]],
+                            [r + 1, c, horizontal[r + 1][c]],
+                            [r, c - 1, vertical[r][c]],
+                            [r, c + 1, vertical[r][c + 1]]
+                        ];
+
+                        for (const [newR, newC, edge] of neighbors) {
+                            if (newR >= 0 && newR < height &&
+                                newC >= 0 && newC < width &&
+                                !outside[newR][newC] &&
+                                !visited[newR][newC] &&
+                                edge === 0) {
+                                visited[newR][newC] = true;
+                                regionQueue.push([newR, newC]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Valid if exactly 1 inside region (or 0 if the loop encloses nothing, which is technically valid but boring)
+        return insideRegions === 1;
     }
 
     generateWindingLoop(width, height, horizontal, vertical) {
@@ -708,65 +817,86 @@ class SlitherlinkGame {
         return true;
     }
 
-    generateEnhancedRectangularLoop(width, height, horizontal, vertical) {
-        // Create a winding rectangular loop with zigzags for more turns
+    generateSimpleRectangularLoop(width, height, horizontal, vertical) {
+        // Create a simple rectangular loop that's guaranteed to have only one enclosed region
+        // Add some random indentations to make it more interesting
         const margin = 1;
 
-        // Create a serpentine pattern within the grid
-        // Start at top-left, snake back and forth
-        let row = margin;
-        let col = margin;
-        let direction = 'right'; // right, down, left, up
-
-        const maxRow = height - margin;
-        const maxCol = width - margin;
-
-        // Go right
-        while (col < maxCol) {
-            horizontal[row][col] = 1;
-            col++;
-        }
-        vertical[row][col] = 1; // Turn down
-
-        // Zigzag down
-        let goingRight = false;
-        while (row < maxRow) {
-            row++;
-            if (row >= maxRow) break;
-
-            if (goingRight) {
-                // Go right with a step
-                for (let c = margin; c < maxCol && row < maxRow; c++) {
-                    horizontal[row][c] = 1;
-                }
-                vertical[row][maxCol] = 1;
-                goingRight = false;
-            } else {
-                // Sometimes add a small zigzag
-                if (Math.random() > 0.5 && row < maxRow - 1) {
-                    // Small detour
-                    const zigCol = margin + Math.floor(Math.random() * (maxCol - margin - 1));
-                    vertical[row][maxCol] = 1;
-                    row++;
-                }
-                goingRight = true;
+        if (width < 3 || height < 3) {
+            // Too small, make outer rectangle
+            for (let col = 0; col < width; col++) {
+                horizontal[0][col] = 1;
+                horizontal[height][col] = 1;
             }
+            for (let row = 0; row < height; row++) {
+                vertical[row][0] = 1;
+                vertical[row][width] = 1;
+            }
+            return;
         }
 
-        // Complete the rectangle if needed
-        row = maxRow;
-        col = maxCol;
+        const topRow = margin;
+        const bottomRow = height - margin;
+        const leftCol = margin;
+        const rightCol = width - margin;
 
-        // Bottom edge (right to left)
-        while (col > margin) {
-            col--;
-            horizontal[row][col] = 1;
+        // Create basic rectangle
+        // Top edge
+        for (let col = leftCol; col < rightCol; col++) {
+            horizontal[topRow][col] = 1;
         }
 
-        // Left edge (bottom to top)
-        while (row > margin) {
-            row--;
-            vertical[row][margin] = 1;
+        // Bottom edge
+        for (let col = leftCol; col < rightCol; col++) {
+            horizontal[bottomRow][col] = 1;
+        }
+
+        // Left edge
+        for (let row = topRow; row < bottomRow; row++) {
+            vertical[row][leftCol] = 1;
+        }
+
+        // Right edge
+        for (let row = topRow; row < bottomRow; row++) {
+            vertical[row][rightCol] = 1;
+        }
+
+        // Add some random single-cell indentations to make it less boring
+        // but ensure we don't create multiple enclosed regions
+        const numIndents = Math.floor(Math.random() * 3) + 1; // 1-3 indentations
+
+        for (let i = 0; i < numIndents; i++) {
+            const side = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
+
+            if (side === 0 && topRow > 0) {
+                // Indent from top
+                const col = leftCol + 1 + Math.floor(Math.random() * (rightCol - leftCol - 2));
+                horizontal[topRow][col] = 0;
+                horizontal[topRow - 1][col] = 1;
+                vertical[topRow - 1][col] = 1;
+                vertical[topRow - 1][col + 1] = 1;
+            } else if (side === 1 && rightCol < width) {
+                // Indent from right
+                const row = topRow + 1 + Math.floor(Math.random() * (bottomRow - topRow - 2));
+                vertical[row][rightCol] = 0;
+                vertical[row][rightCol + 1] = 1;
+                horizontal[row][rightCol] = 1;
+                horizontal[row + 1][rightCol] = 1;
+            } else if (side === 2 && bottomRow < height) {
+                // Indent from bottom
+                const col = leftCol + 1 + Math.floor(Math.random() * (rightCol - leftCol - 2));
+                horizontal[bottomRow][col] = 0;
+                horizontal[bottomRow + 1][col] = 1;
+                vertical[bottomRow][col] = 1;
+                vertical[bottomRow][col + 1] = 1;
+            } else if (side === 3 && leftCol > 0) {
+                // Indent from left
+                const row = topRow + 1 + Math.floor(Math.random() * (bottomRow - topRow - 2));
+                vertical[row][leftCol] = 0;
+                vertical[row][leftCol - 1] = 1;
+                horizontal[row][leftCol - 1] = 1;
+                horizontal[row + 1][leftCol - 1] = 1;
+            }
         }
     }
 
