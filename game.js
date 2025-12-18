@@ -275,6 +275,87 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return false;
     };
 
+    // Helper function to check if carving would create connected regions of >2 cells with score 0
+    const wouldCreateLargeZeroRegion = () => {
+        // First, rebuild the loop with current inside state
+        const tempH = Array(height + 1).fill(null).map(() => Array(width).fill(0));
+        const tempV = Array(height).fill(null).map(() => Array(width + 1).fill(0));
+
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (inside[row][col]) {
+                    if (row === 0 || !inside[row - 1][col]) tempH[row][col] = 1;
+                    if (row === height - 1 || !inside[row + 1][col]) tempH[row + 1][col] = 1;
+                    if (col === 0 || !inside[row][col - 1]) tempV[row][col] = 1;
+                    if (col === width - 1 || !inside[row][col + 1]) tempV[row][col + 1] = 1;
+                }
+            }
+        }
+
+        // Find all cells with score 0
+        const zeroScoreCells = [];
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (inside[row][col]) {
+                    let count = 0;
+                    if (tempH[row][col] === 1) count++;
+                    if (tempH[row + 1][col] === 1) count++;
+                    if (tempV[row][col] === 1) count++;
+                    if (tempV[row][col + 1] === 1) count++;
+                    if (count === 0) {
+                        zeroScoreCells.push([row, col]);
+                    }
+                }
+            }
+        }
+
+        // Check connected components of zero-score cells
+        const zeroVisited = new Set();
+        for (const [startRow, startCol] of zeroScoreCells) {
+            const key = \`\${startRow},\${startCol}\`;
+            if (zeroVisited.has(key)) continue;
+
+            // BFS to find connected component size
+            const queue = [[startRow, startCol]];
+            zeroVisited.add(key);
+            let componentSize = 1;
+
+            while (queue.length > 0) {
+                const [r, c] = queue.shift();
+                const neighbors = [
+                    [r - 1, c],
+                    [r + 1, c],
+                    [r, c - 1],
+                    [r, c + 1]
+                ];
+
+                for (const [nr, nc] of neighbors) {
+                    const nKey = \`\${nr},\${nc}\`;
+                    if (nr >= 0 && nr < height && nc >= 0 && nc < width &&
+                        inside[nr][nc] && !zeroVisited.has(nKey)) {
+                        // Check if neighbor also has score 0
+                        let nCount = 0;
+                        if (tempH[nr][nc] === 1) nCount++;
+                        if (tempH[nr + 1][nc] === 1) nCount++;
+                        if (tempV[nr][nc] === 1) nCount++;
+                        if (tempV[nr][nc + 1] === 1) nCount++;
+                        if (nCount === 0) {
+                            zeroVisited.add(nKey);
+                            queue.push([nr, nc]);
+                            componentSize++;
+                        }
+                    }
+                }
+            }
+
+            if (componentSize > 2) {
+                return true; // Found a connected region with >2 zero-score cells
+            }
+        }
+
+        return false;
+    };
+
     // Remove cells iteratively
     const visited = new Set();
     let iterations = 0;
@@ -311,8 +392,17 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             continue;
         }
 
-        // Mark as outside
+        // Tentatively carve the cell to test constraints
         inside[row][col] = false;
+
+        // Check if this creates a large zero-score region
+        if (wouldCreateLargeZeroRegion()) {
+            // Revert the carve
+            inside[row][col] = true;
+            continue;
+        }
+
+        // Keep the cell carved (already set to false above)
 
         // Add adjacent inside cells as new adjacent candidates
         const neighbors = [
