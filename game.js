@@ -370,7 +370,9 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
     // Remove cells iteratively
     let iterations = 0;
-    const maxIterations = totalCells * 2; // Safety limit
+    const maxIterations = totalCells * 3; // Give more attempts to reach target
+    let consecutiveFailures = 0;
+    const maxConsecutiveFailures = 20; // Stop if we can't make progress
 
     while (iterations < maxIterations && carved.size < targetCarve) {
         iterations++;
@@ -397,40 +399,61 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
         // If no candidates available at all, stop
         if (candidates.length === 0) {
-            console.log(\`Worker: No more candidates available\`);
+            console.log(\`Worker: No more candidates available after \${carved.size} carves\`);
             break;
         }
 
         // Shuffle and pick one
         shuffle(candidates);
-        [row, col] = candidates[0];
+        let carved_this_iteration = false;
 
-        const key = \`\${row},\${col}\`;
+        // Try multiple candidates if needed
+        for (let attempt = 0; attempt < Math.min(5, candidates.length); attempt++) {
+            [row, col] = candidates[attempt];
+            const key = \`\${row},\${col}\`;
 
-        // Skip if already carved
-        if (carved.has(key) || !inside[row][col]) continue;
+            // Skip if already carved
+            if (carved.has(key) || !inside[row][col]) continue;
 
-        // Don't carve if it would clear an entire row or column
-        if (wouldClearRowOrColumn(row, col)) {
-            continue;
+            // Don't carve if it would clear an entire row or column
+            if (wouldClearRowOrColumn(row, col)) {
+                continue;
+            }
+
+            // Tentatively carve the cell to test constraints
+            inside[row][col] = false;
+
+            // Check if this creates a large zero-score region (only after initial carving)
+            // We skip this check for the first few carves since a full grid has many connected zeros
+            if (carved.size >= 5 && wouldCreateLargeZeroRegion()) {
+                // Revert the carve
+                inside[row][col] = true;
+                continue;
+            }
+
+            // Keep the cell carved
+            carved.add(key);
+            carved_this_iteration = true;
+            consecutiveFailures = 0;
+            break;
         }
 
-        // Tentatively carve the cell to test constraints
-        inside[row][col] = false;
-
-        // Check if this creates a large zero-score region (only after initial carving)
-        // We skip this check for the first few carves since a full grid has many connected zeros
-        if (carved.size >= 5 && wouldCreateLargeZeroRegion()) {
-            // Revert the carve
-            inside[row][col] = true;
-            continue;
+        if (!carved_this_iteration) {
+            consecutiveFailures++;
+            if (consecutiveFailures >= maxConsecutiveFailures) {
+                console.log(\`Worker: Failed to carve for \${consecutiveFailures} consecutive attempts, stopping\`);
+                break;
+            }
         }
-
-        // Keep the cell carved
-        carved.add(key);
     }
 
     console.log(\`Worker: Carved \${carved.size} cells out of \${totalCells} (target was \${targetCarve})\`);
+
+    // If we didn't carve enough cells, fail this attempt
+    if (carved.size < targetCarve - 2) { // Allow 2 cells tolerance
+        console.log(\`Worker: Failed to reach carving target, will retry\`);
+        return false;
+    }
 
     // Final loop building
     for (let i = 0; i <= height; i++) {
