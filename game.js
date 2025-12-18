@@ -216,6 +216,20 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return available;
     };
 
+    // Get cells on the outside edge of the grid (for first carve)
+    const getOutsideEdgeCells = () => {
+        const edgeCells = [];
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (inside[row][col] &&
+                    (row === 0 || row === height - 1 || col === 0 || col === width - 1)) {
+                    edgeCells.push([row, col]);
+                }
+            }
+        }
+        return edgeCells;
+    };
+
     // Get cells adjacent to carved cells
     const getAdjacentToCarved = () => {
         const adjacent = [];
@@ -285,6 +299,50 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         if (colCount <= 1) return true; // This is the last or only cell in column
 
         return false;
+    };
+
+    // Helper function to check if inside cells form multiple disconnected regions (multiple loops)
+    const wouldCreateMultipleLoops = () => {
+        // Find all inside cells
+        const insideCells = [];
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (inside[row][col]) {
+                    insideCells.push([row, col]);
+                }
+            }
+        }
+
+        // If no inside cells, that's fine (no loops yet)
+        if (insideCells.length === 0) return false;
+
+        // Check if all inside cells are connected
+        const visited = new Set();
+        const queue = [insideCells[0]];
+        const startKey = \`\${insideCells[0][0]},\${insideCells[0][1]}\`;
+        visited.add(startKey);
+
+        while (queue.length > 0) {
+            const [r, c] = queue.shift();
+            const neighbors = [
+                [r - 1, c],
+                [r + 1, c],
+                [r, c - 1],
+                [r, c + 1]
+            ];
+
+            for (const [nr, nc] of neighbors) {
+                const nKey = \`\${nr},\${nc}\`;
+                if (nr >= 0 && nr < height && nc >= 0 && nc < width &&
+                    inside[nr][nc] && !visited.has(nKey)) {
+                    visited.add(nKey);
+                    queue.push([nr, nc]);
+                }
+            }
+        }
+
+        // If visited count doesn't match inside cells count, we have multiple regions
+        return visited.size !== insideCells.length;
     };
 
     // Helper function to check if carving would create connected regions of >2 cells with score 0
@@ -380,11 +438,15 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         let row, col;
         let candidates = [];
 
-        // 50% chance: carve adjacent to already carved cell
-        // 50% chance: carve a non-adjacent cell (fresh region)
+        // Selection strategy:
+        // 1. First carve: prioritize outside edge cells
+        // 2. Otherwise: 50% adjacent to carved, 50% non-adjacent
         if (carved.size === 0) {
-            // First carve: pick any cell
-            candidates = getAllAvailableCells();
+            // First carve: prefer outside edge cells
+            candidates = getOutsideEdgeCells();
+            if (candidates.length === 0) {
+                candidates = getAllAvailableCells();
+            }
         } else if (Math.random() < 0.5) {
             // Try to carve adjacent to existing carved cells
             candidates = getAdjacentToCarved();
@@ -422,6 +484,13 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
             // Tentatively carve the cell to test constraints
             inside[row][col] = false;
+
+            // Check if this creates multiple disconnected loops
+            if (wouldCreateMultipleLoops()) {
+                // Revert the carve
+                inside[row][col] = true;
+                continue;
+            }
 
             // Check if this creates a large zero-score region (only after initial carving)
             // We skip this check for the first few carves since a full grid has many connected zeros
