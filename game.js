@@ -7,6 +7,7 @@ class SlitherlinkGame {
         this.cellSize = 60;
         this.dotRadius = 5;
         this.lineWidth = 4;
+        this.padding = 30; // Padding around the grid
 
         // Current puzzle
         this.currentPuzzleIndex = 0;
@@ -60,8 +61,8 @@ class SlitherlinkGame {
     }
 
     setupCanvas() {
-        const width = (this.gridWidth + 1) * this.cellSize;
-        const height = (this.gridHeight + 1) * this.cellSize;
+        const width = this.gridWidth * this.cellSize + 2 * this.padding;
+        const height = this.gridHeight * this.cellSize + 2 * this.padding;
         this.canvas.width = width;
         this.canvas.height = height;
     }
@@ -112,11 +113,11 @@ class SlitherlinkGame {
 
         // Check horizontal edges (between dots on the same row)
         for (let row = 0; row <= this.gridHeight; row++) {
-            const edgeY = (row + 1) * this.cellSize;  // Y position of the dots
+            const edgeY = this.padding + row * this.cellSize;  // Y position of the dots
             if (Math.abs(y - edgeY) < threshold) {
                 for (let col = 0; col < this.gridWidth; col++) {
-                    const x1 = (col + 1) * this.cellSize;
-                    const x2 = (col + 2) * this.cellSize;
+                    const x1 = this.padding + col * this.cellSize;
+                    const x2 = this.padding + (col + 1) * this.cellSize;
                     const centerX = (x1 + x2) / 2;
                     if (x > x1 - threshold && x < x2 + threshold) {
                         return { type: 'horizontal', row, col };
@@ -127,11 +128,11 @@ class SlitherlinkGame {
 
         // Check vertical edges (between dots on the same column)
         for (let row = 0; row < this.gridHeight; row++) {
-            const y1 = (row + 1) * this.cellSize;
-            const y2 = (row + 2) * this.cellSize;
+            const y1 = this.padding + row * this.cellSize;
+            const y2 = this.padding + (row + 1) * this.cellSize;
             const centerY = (y1 + y2) / 2;
             for (let col = 0; col <= this.gridWidth; col++) {
-                const edgeX = (col + 1) * this.cellSize;  // X position of the dots
+                const edgeX = this.padding + col * this.cellSize;  // X position of the dots
                 if (Math.abs(x - edgeX) < threshold &&
                     y > y1 - threshold && y < y2 + threshold) {
                     return { type: 'vertical', row, col };
@@ -150,8 +151,8 @@ class SlitherlinkGame {
         this.ctx.fillStyle = '#fafafa';
         for (let row = 0; row < this.gridHeight; row++) {
             for (let col = 0; col < this.gridWidth; col++) {
-                const x = (col + 1) * this.cellSize;
-                const y = (row + 1) * this.cellSize;
+                const x = this.padding + col * this.cellSize;
+                const y = this.padding + row * this.cellSize;
                 this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
             }
         }
@@ -166,8 +167,8 @@ class SlitherlinkGame {
             for (let col = 0; col < this.gridWidth; col++) {
                 const num = this.numbers[row][col];
                 if (num !== null) {
-                    const x = (col + 1.5) * this.cellSize;
-                    const y = (row + 1.5) * this.cellSize;
+                    const x = this.padding + (col + 0.5) * this.cellSize;
+                    const y = this.padding + (row + 0.5) * this.cellSize;
                     this.ctx.fillText(num.toString(), x, y);
                 }
             }
@@ -177,8 +178,8 @@ class SlitherlinkGame {
         this.ctx.fillStyle = '#000';
         for (let row = 0; row <= this.gridHeight; row++) {
             for (let col = 0; col <= this.gridWidth; col++) {
-                const x = (col + 1) * this.cellSize;
-                const y = (row + 1) * this.cellSize;
+                const x = this.padding + col * this.cellSize;
+                const y = this.padding + row * this.cellSize;
                 this.ctx.beginPath();
                 this.ctx.arc(x, y, this.dotRadius, 0, Math.PI * 2);
                 this.ctx.fill();
@@ -189,9 +190,9 @@ class SlitherlinkGame {
         for (let row = 0; row <= this.gridHeight; row++) {
             for (let col = 0; col < this.gridWidth; col++) {
                 const state = this.horizontalEdges[row][col];
-                const x1 = (col + 1) * this.cellSize;
-                const x2 = (col + 2) * this.cellSize;
-                const y = (row + 1) * this.cellSize;
+                const x1 = this.padding + col * this.cellSize;
+                const x2 = this.padding + (col + 1) * this.cellSize;
+                const y = this.padding + row * this.cellSize;
 
                 if (state === 1) {
                     // Draw line
@@ -213,9 +214,9 @@ class SlitherlinkGame {
         for (let row = 0; row < this.gridHeight; row++) {
             for (let col = 0; col <= this.gridWidth; col++) {
                 const state = this.verticalEdges[row][col];
-                const x = (col + 1) * this.cellSize;
-                const y1 = (row + 1) * this.cellSize;
-                const y2 = (row + 2) * this.cellSize;
+                const x = this.padding + col * this.cellSize;
+                const y1 = this.padding + row * this.cellSize;
+                const y2 = this.padding + (row + 1) * this.cellSize;
 
                 if (state === 1) {
                     // Draw line
