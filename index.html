@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slitherlink Puzzle</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Slitherlink</h1>
+        <p class="instructions">
+            Draw a single loop by connecting the dots. Numbers show how many lines surround each cell.
+            <br>
+            <strong>Left click:</strong> Draw line | <strong>Right click:</strong> Mark with X
+        </p>
+        <div class="game-container">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        <div class="controls">
+            <button id="clearBtn">Clear Board</button>
+            <button id="checkBtn">Check Solution</button>
+            <button id="showSolutionBtn">Show Solution</button>
+            <button id="newPuzzleBtn">New Puzzle</button>
+        </div>
+        <div id="message" class="message"></div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
