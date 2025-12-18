@@ -103,9 +103,12 @@ function generateRandomLoop(width, height) {
         for (let i = 0; i < height; i++) {
             for (let j = 0; j <= width; j++) vertical[i][j] = 0;
         }
-        const useWinding = Math.random() > 0.3;
-        console.log(\`Worker: Using \${useWinding ? 'winding' : 'recursive'} algorithm...\`);
-        if (useWinding) {
+        const method = Math.random();
+        const methodName = method > 0.66 ? 'carving' : (method > 0.33 ? 'winding' : 'recursive');
+        console.log(\`Worker: Using \${methodName} algorithm...\`);
+        if (methodName === 'carving') {
+            success = generateCarvingLoop(width, height, horizontal, vertical);
+        } else if (methodName === 'winding') {
             success = generateWindingLoop(width, height, horizontal, vertical);
         } else {
             success = generateRecursiveLoop(width, height, horizontal, vertical);
@@ -185,6 +188,97 @@ function validateSingleRegion(width, height, horizontal, vertical) {
         }
     }
     return insideRegions === 1;
+}
+
+function generateCarvingLoop(width, height, horizontal, vertical) {
+    // Start with all cells as inside, then carve away cells from the edges
+    const inside = Array(height).fill(null).map(() => Array(width).fill(true));
+
+    // Target: remove 20-25% of cells
+    const totalCells = width * height;
+    const targetRemove = Math.floor(totalCells * (0.20 + Math.random() * 0.05));
+    let removed = 0;
+
+    // Start from edge cells - these are candidates for removal
+    const candidates = [];
+
+    // Add all edge cells as initial candidates
+    for (let row = 0; row < height; row++) {
+        for (let col = 0; col < width; col++) {
+            if (row === 0 || row === height - 1 || col === 0 || col === width - 1) {
+                candidates.push([row, col]);
+            }
+        }
+    }
+
+    // Shuffle candidates for randomness
+    const shuffle = (array) => {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    };
+    shuffle(candidates);
+
+    // Remove cells iteratively
+    const visited = new Set();
+    while (removed < targetRemove && candidates.length > 0) {
+        const [row, col] = candidates.shift();
+        const key = \`\${row},\${col}\`;
+
+        if (visited.has(key) || !inside[row][col]) continue;
+        visited.add(key);
+
+        // Mark as outside
+        inside[row][col] = false;
+        removed++;
+
+        // Add adjacent inside cells as new candidates (with some randomness)
+        const neighbors = [
+            [row - 1, col],
+            [row + 1, col],
+            [row, col - 1],
+            [row, col + 1]
+        ];
+
+        shuffle(neighbors);
+        for (const [nr, nc] of neighbors) {
+            if (nr >= 0 && nr < height && nc >= 0 && nc < width && inside[nr][nc]) {
+                const neighborKey = \`\${nr},\${nc}\`;
+                if (!visited.has(neighborKey) && Math.random() > 0.4) {
+                    candidates.push([nr, nc]);
+                }
+            }
+        }
+    }
+
+    // Now build the loop around the boundary of inside cells
+    // For each inside cell, draw lines on edges that border outside cells or grid boundary
+    for (let row = 0; row < height; row++) {
+        for (let col = 0; col < width; col++) {
+            if (inside[row][col]) {
+                // Check top edge
+                if (row === 0 || !inside[row - 1][col]) {
+                    horizontal[row][col] = 1;
+                }
+                // Check bottom edge
+                if (row === height - 1 || !inside[row + 1][col]) {
+                    horizontal[row + 1][col] = 1;
+                }
+                // Check left edge
+                if (col === 0 || !inside[row][col - 1]) {
+                    vertical[row][col] = 1;
+                }
+                // Check right edge
+                if (col === width - 1 || !inside[row][col + 1]) {
+                    vertical[row][col + 1] = 1;
+                }
+            }
+        }
+    }
+
+    return true;
 }
 
 function generateWindingLoop(width, height, horizontal, vertical) {
