@@ -228,7 +228,7 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
                 [r, c + 1]
             ];
             for (const [nr, nc] of neighbors) {
-                const nKey = `${nr},${nc}`;
+                const nKey = \`\${nr},\${nc}\`;
                 if (nr >= 0 && nr < height && nc >= 0 && nc < width &&
                     inside[nr][nc] && !carved.has(nKey)) {
                     adjacent.push([nr, nc]);
@@ -251,7 +251,7 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             ];
             for (const [nr, nc] of neighbors) {
                 if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
-                    adjacentSet.add(`${nr},${nc}`);
+                    adjacentSet.add(\`\${nr},\${nc}\`);
                 }
             }
         }
@@ -259,7 +259,7 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         // Get edge cells that are NOT adjacent to carved cells
         const edges = getAllEdgeCells();
         for (const [r, c] of edges) {
-            const key = `${r},${c}`;
+            const key = \`\${r},\${c}\`;
             if (!adjacentSet.has(key) && !carved.has(key)) {
                 nonAdjacent.push([r, c]);
             }
