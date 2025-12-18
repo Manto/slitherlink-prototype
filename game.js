@@ -103,16 +103,8 @@ function generateRandomLoop(width, height) {
         for (let i = 0; i < height; i++) {
             for (let j = 0; j <= width; j++) vertical[i][j] = 0;
         }
-        const method = Math.random();
-        const methodName = method > 0.66 ? 'carving' : (method > 0.33 ? 'winding' : 'recursive');
-        console.log(\`Worker: Using \${methodName} algorithm...\`);
-        if (methodName === 'carving') {
-            success = generateCarvingLoop(width, height, horizontal, vertical);
-        } else if (methodName === 'winding') {
-            success = generateWindingLoop(width, height, horizontal, vertical);
-        } else {
-            success = generateRecursiveLoop(width, height, horizontal, vertical);
-        }
+        console.log(\`Worker: Using carving algorithm...\`);
+        success = generateCarvingLoop(width, height, horizontal, vertical);
         if (!success) {
             console.log('Worker:   Loop generation failed, retrying...');
             continue;
@@ -126,8 +118,9 @@ function generateRandomLoop(width, height) {
         }
     }
     if (!success) {
-        console.log('Worker: All attempts failed, using fallback rectangular loop');
-        generateSimpleRectangularLoop(width, height, horizontal, vertical);
+        console.log('Worker: All attempts failed, retrying one more time...');
+        // Last attempt with adjusted parameters
+        generateCarvingLoop(width, height, horizontal, vertical);
     }
     return { horizontal, vertical };
 }
@@ -201,6 +194,7 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
     // Start from edge cells - these are candidates for removal
     const candidates = [];
+    const adjacentCandidates = []; // Cells adjacent to recently carved cells
 
     // Add all edge cells as initial candidates
     for (let row = 0; row < height; row++) {
@@ -223,8 +217,18 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
     // Remove cells iteratively
     const visited = new Set();
-    while (removed < targetRemove && candidates.length > 0) {
-        const [row, col] = candidates.shift();
+    while (removed < targetRemove && (candidates.length > 0 || adjacentCandidates.length > 0)) {
+        let row, col;
+
+        // 50% chance to carve adjacent to previously carved cell if available
+        if (adjacentCandidates.length > 0 && Math.random() > 0.5) {
+            [row, col] = adjacentCandidates.shift();
+        } else if (candidates.length > 0) {
+            [row, col] = candidates.shift();
+        } else {
+            [row, col] = adjacentCandidates.shift();
+        }
+
         const key = \`\${row},\${col}\`;
 
         if (visited.has(key) || !inside[row][col]) continue;
@@ -234,7 +238,7 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         inside[row][col] = false;
         removed++;
 
-        // Add adjacent inside cells as new candidates (with some randomness)
+        // Add adjacent inside cells as new adjacent candidates
         const neighbors = [
             [row - 1, col],
             [row + 1, col],
@@ -246,8 +250,8 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         for (const [nr, nc] of neighbors) {
             if (nr >= 0 && nr < height && nc >= 0 && nc < width && inside[nr][nc]) {
                 const neighborKey = \`\${nr},\${nc}\`;
-                if (!visited.has(neighborKey) && Math.random() > 0.4) {
-                    candidates.push([nr, nc]);
+                if (!visited.has(neighborKey) && Math.random() > 0.3) {
+                    adjacentCandidates.push([nr, nc]);
                 }
             }
         }
@@ -279,187 +283,6 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
     }
 
     return true;
-}
-
-function generateWindingLoop(width, height, horizontal, vertical) {
-    const path = [];
-    const visited = new Set();
-    let row = Math.floor(Math.random() * (height + 1));
-    let col = Math.floor(Math.random() * (width + 1));
-    const startRow = row, startCol = col;
-    const getKey = (r, c) => \`\${r},\${c}\`;
-    let lastDir = null;
-    const directions = [
-        { dr: 0, dc: 1, name: 'right', type: 'h' },
-        { dr: 0, dc: -1, name: 'left', type: 'h' },
-        { dr: 1, dc: 0, name: 'down', type: 'v' },
-        { dr: -1, dc: 0, name: 'up', type: 'v' }
-    ];
-    const shuffle = (array) => {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-    };
-    for (let step = 0; step < 100; step++) {
-        visited.add(getKey(row, col));
-        let availableDirs = directions.filter(dir => {
-            const newRow = row + dir.dr, newCol = col + dir.dc;
-            return newRow >= 0 && newRow <= height && newCol >= 0 && newCol <= width;
-        });
-        if (lastDir && Math.random() > 0.3) {
-            const turningDirs = availableDirs.filter(dir => dir.name !== lastDir);
-            if (turningDirs.length > 0) availableDirs = turningDirs;
-        }
-        if (path.length > 15) {
-            const toStart = availableDirs.find(dir => row + dir.dr === startRow && col + dir.dc === startCol);
-            if (toStart && Math.random() > 0.5) {
-                path.push({ row, col, newRow: startRow, newCol: startCol, dir: toStart.type });
-                break;
-            }
-        }
-        availableDirs = availableDirs.filter(dir => {
-            const newKey = getKey(row + dir.dr, col + dir.dc);
-            return !visited.has(newKey) || (path.length > 15 && row + dir.dr === startRow && col + dir.dc === startCol);
-        });
-        if (availableDirs.length === 0) {
-            if (path.length > 15 && Math.abs(row - startRow) <= 1 && Math.abs(col - startCol) <= 1) {
-                const toStart = directions.find(dir => row + dir.dr === startRow && col + dir.dc === startCol);
-                if (toStart) {
-                    path.push({ row, col, newRow: startRow, newCol: startCol, dir: toStart.type });
-                    break;
-                }
-            }
-            return false;
-        }
-        const randomDirs = shuffle([...availableDirs]);
-        const chosenDir = randomDirs[0];
-        const newRow = row + chosenDir.dr, newCol = col + chosenDir.dc;
-        path.push({ row, col, newRow, newCol, dir: chosenDir.type });
-        lastDir = chosenDir.name;
-        row = newRow; col = newCol;
-    }
-    if (row !== startRow || col !== startCol || path.length < 12) return false;
-    for (const edge of path) {
-        if (edge.dir === 'h') {
-            if (edge.col < edge.newCol) horizontal[edge.row][edge.col] = 1;
-            else horizontal[edge.row][edge.newCol] = 1;
-        } else {
-            if (edge.row < edge.newRow) vertical[edge.row][edge.col] = 1;
-            else vertical[edge.newRow][edge.col] = 1;
-        }
-    }
-    return true;
-}
-
-function generateRecursiveLoop(width, height, horizontal, vertical) {
-    const visited = new Set();
-    const path = [];
-    const startRow = Math.floor(Math.random() * (height + 1));
-    const startCol = Math.floor(Math.random() * (width + 1));
-    const directions = [
-        { dr: 0, dc: 1, type: 'h' },
-        { dr: 0, dc: -1, type: 'h' },
-        { dr: 1, dc: 0, type: 'v' },
-        { dr: -1, dc: 0, type: 'v' }
-    ];
-    const shuffle = (array) => {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-    };
-    const buildLoop = (row, col, pathLength, lastDir) => {
-        const key = \`\${row},\${col}\`;
-        if (pathLength > 12 && row === startRow && col === startCol) return true;
-        if (pathLength > 0 && visited.has(key)) return false;
-        if (pathLength > 0) visited.add(key);
-        let randomDirs = shuffle([...directions]);
-        if (lastDir !== null && Math.random() > 0.4) {
-            randomDirs.sort((a, b) => {
-                if (a.type !== lastDir && b.type === lastDir) return -1;
-                if (a.type === lastDir && b.type !== lastDir) return 1;
-                return 0;
-            });
-        }
-        for (const dir of randomDirs) {
-            const newRow = row + dir.dr, newCol = col + dir.dc;
-            if (newRow < 0 || newRow > height || newCol < 0 || newCol > width) continue;
-            const newKey = \`\${newRow},\${newCol}\`;
-            if (pathLength > 12 && newRow === startRow && newCol === startCol) {
-                path.push({ row, col, newRow, newCol, dir: dir.type });
-                return true;
-            }
-            if (visited.has(newKey)) continue;
-            path.push({ row, col, newRow, newCol, dir: dir.type });
-            if (buildLoop(newRow, newCol, pathLength + 1, dir.type)) return true;
-            path.pop();
-        }
-        if (pathLength > 0) visited.delete(key);
-        return false;
-    };
-    if (!buildLoop(startRow, startCol, 0, null) || path.length < 12) return false;
-    for (const edge of path) {
-        if (edge.dir === 'h') {
-            if (edge.col < edge.newCol) horizontal[edge.row][edge.col] = 1;
-            else horizontal[edge.row][edge.newCol] = 1;
-        } else {
-            if (edge.row < edge.newRow) vertical[edge.row][edge.col] = 1;
-            else vertical[edge.newRow][edge.col] = 1;
-        }
-    }
-    return true;
-}
-
-function generateSimpleRectangularLoop(width, height, horizontal, vertical) {
-    const margin = 1;
-    if (width < 3 || height < 3) {
-        for (let col = 0; col < width; col++) {
-            horizontal[0][col] = 1;
-            horizontal[height][col] = 1;
-        }
-        for (let row = 0; row < height; row++) {
-            vertical[row][0] = 1;
-            vertical[row][width] = 1;
-        }
-        return;
-    }
-    const topRow = margin, bottomRow = height - margin, leftCol = margin, rightCol = width - margin;
-    for (let col = leftCol; col < rightCol; col++) horizontal[topRow][col] = 1;
-    for (let col = leftCol; col < rightCol; col++) horizontal[bottomRow][col] = 1;
-    for (let row = topRow; row < bottomRow; row++) vertical[row][leftCol] = 1;
-    for (let row = topRow; row < bottomRow; row++) vertical[row][rightCol] = 1;
-    const numIndents = Math.floor(Math.random() * 3) + 1;
-    for (let i = 0; i < numIndents; i++) {
-        const side = Math.floor(Math.random() * 4);
-        if (side === 0 && topRow > 0) {
-            const col = leftCol + 1 + Math.floor(Math.random() * (rightCol - leftCol - 2));
-            horizontal[topRow][col] = 0;
-            horizontal[topRow - 1][col] = 1;
-            vertical[topRow - 1][col] = 1;
-            vertical[topRow - 1][col + 1] = 1;
-        } else if (side === 1 && rightCol < width) {
-            const row = topRow + 1 + Math.floor(Math.random() * (bottomRow - topRow - 2));
-            vertical[row][rightCol] = 0;
-            vertical[row][rightCol + 1] = 1;
-            horizontal[row][rightCol] = 1;
-            horizontal[row + 1][rightCol] = 1;
-        } else if (side === 2 && bottomRow < height) {
-            const col = leftCol + 1 + Math.floor(Math.random() * (rightCol - leftCol - 2));
-            horizontal[bottomRow][col] = 0;
-            horizontal[bottomRow + 1][col] = 1;
-            vertical[bottomRow][col] = 1;
-            vertical[bottomRow][col + 1] = 1;
-        } else if (side === 3 && leftCol > 0) {
-            const row = topRow + 1 + Math.floor(Math.random() * (bottomRow - topRow - 2));
-            vertical[row][leftCol] = 0;
-            vertical[row][leftCol - 1] = 1;
-            horizontal[row][leftCol - 1] = 1;
-            horizontal[row + 1][leftCol - 1] = 1;
-        }
-    }
 }
 
 function extractNumbersFromSolution(width, height, horizontal, vertical) {
