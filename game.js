@@ -62,11 +62,11 @@ ${this.getWorkerCode()}
 
     getWorkerCode() {
         // Returns the complete worker code as a string
-        return \`
+        return `
 // Web Worker for generating Slitherlink puzzles
 self.onmessage = function(e) {
     const { width, height } = e.data;
-    console.log(\\\`Worker: Starting puzzle generation for \\\${width}x\\\${height}...\\\`);
+    console.log(\`Worker: Starting puzzle generation for \${width}x\${height}...\`);
     const puzzle = generatePuzzle(width, height);
     console.log('Worker: Puzzle generation complete!');
     self.postMessage(puzzle);
@@ -96,7 +96,7 @@ function generateRandomLoop(width, height) {
     let attempts = 0;
     while (!success && attempts < 10) {
         attempts++;
-        console.log(\\\`Worker: Generation attempt \\\${attempts}/10...\\\`);
+        console.log(\`Worker: Generation attempt \${attempts}/10...\`);
         for (let i = 0; i <= height; i++) {
             for (let j = 0; j < width; j++) horizontal[i][j] = 0;
         }
@@ -104,7 +104,7 @@ function generateRandomLoop(width, height) {
             for (let j = 0; j <= width; j++) vertical[i][j] = 0;
         }
         const useWinding = Math.random() > 0.3;
-        console.log(\\\`Worker:   Using \\\${useWinding ? 'winding' : 'recursive'} algorithm...\\\`);
+        console.log(\`Worker: Using \${useWinding ? 'winding' : 'recursive'} algorithm...\`);
         if (useWinding) {
             success = generateWindingLoop(width, height, horizontal, vertical);
         } else {
@@ -193,7 +193,7 @@ function generateWindingLoop(width, height, horizontal, vertical) {
     let row = Math.floor(Math.random() * (height + 1));
     let col = Math.floor(Math.random() * (width + 1));
     const startRow = row, startCol = col;
-    const getKey = (r, c) => \\\`\\\${r},\\\${c}\\\`;
+    const getKey = (r, c) => \`\${r},\${c}\`;
     let lastDir = null;
     const directions = [
         { dr: 0, dc: 1, name: 'right', type: 'h' },
@@ -278,7 +278,7 @@ function generateRecursiveLoop(width, height, horizontal, vertical) {
         return array;
     };
     const buildLoop = (row, col, pathLength, lastDir) => {
-        const key = \\\`\\\${row},\\\${col}\\\`;
+        const key = \`\${row},\${col}\`;
         if (pathLength > 12 && row === startRow && col === startCol) return true;
         if (pathLength > 0 && visited.has(key)) return false;
         if (pathLength > 0) visited.add(key);
@@ -293,7 +293,7 @@ function generateRecursiveLoop(width, height, horizontal, vertical) {
         for (const dir of randomDirs) {
             const newRow = row + dir.dr, newCol = col + dir.dc;
             if (newRow < 0 || newRow > height || newCol < 0 || newCol > width) continue;
-            const newKey = \\\`\\\${newRow},\\\${newCol}\\\`;
+            const newKey = \`\${newRow},\${newCol}\`;
             if (pathLength > 12 && newRow === startRow && newCol === startCol) {
                 path.push({ row, col, newRow, newCol, dir: dir.type });
                 return true;
