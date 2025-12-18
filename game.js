@@ -469,8 +469,9 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         // Tentatively carve the cell to test constraints
         inside[row][col] = false;
 
-        // Check if this creates a large zero-score region
-        if (wouldCreateLargeZeroRegion()) {
+        // Check if this creates a large zero-score region (only after initial carving)
+        // We skip this check for the first few carves since a full grid has many connected zeros
+        if (carved.size >= 5 && wouldCreateLargeZeroRegion()) {
             // Revert the carve
             inside[row][col] = true;
             continue;
