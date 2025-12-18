@@ -280,25 +280,33 @@ class SlitherlinkGame {
     }
 
     nextPuzzle() {
-        // Generate a new random puzzle (always 6x6)
-        const width = 6;
-        const height = 6;
-        const newPuzzle = this.generatePuzzle(width, height);
+        // Show generating message
+        this.showMessage('Generating puzzle...', 'info');
+        console.log('Starting puzzle generation...');
 
-        this.gridWidth = newPuzzle.width;
-        this.gridHeight = newPuzzle.height;
-        this.numbers = newPuzzle.numbers;
-        this.solution = newPuzzle.solution;  // Store solution
+        // Use setTimeout to allow UI to update before heavy computation
+        setTimeout(() => {
+            // Generate a new random puzzle (always 6x6)
+            const width = 6;
+            const height = 6;
+            const newPuzzle = this.generatePuzzle(width, height);
 
-        // Clear the board
-        this.horizontalEdges = Array(this.gridHeight + 1).fill(null)
-            .map(() => Array(this.gridWidth).fill(0));
-        this.verticalEdges = Array(this.gridHeight).fill(null)
-            .map(() => Array(this.gridWidth + 1).fill(0));
+            this.gridWidth = newPuzzle.width;
+            this.gridHeight = newPuzzle.height;
+            this.numbers = newPuzzle.numbers;
+            this.solution = newPuzzle.solution;  // Store solution
 
-        this.setupCanvas();
-        this.draw();
-        this.showMessage('New puzzle generated!', 'info');
+            // Clear the board
+            this.horizontalEdges = Array(this.gridHeight + 1).fill(null)
+                .map(() => Array(this.gridWidth).fill(0));
+            this.verticalEdges = Array(this.gridHeight).fill(null)
+                .map(() => Array(this.gridWidth + 1).fill(0));
+
+            this.setupCanvas();
+            this.draw();
+            console.log('Puzzle generation complete!');
+            this.showMessage('New puzzle generated!', 'info');
+        }, 50);
     }
 
     checkSolution() {
@@ -418,12 +426,15 @@ class SlitherlinkGame {
 
     generatePuzzle(width, height) {
         // Generate a valid random loop solution
+        console.log('Generating random loop...');
         const solution = this.generateRandomLoop(width, height);
 
         // Extract all possible numbers from the solution
+        console.log('Extracting numbers from solution...');
         const allNumbers = this.extractNumbersFromSolution(width, height, solution.horizontal, solution.vertical);
 
         // Select which numbers to reveal as clues
+        console.log('Selecting clues...');
         const clueNumbers = this.selectClues(allNumbers, width, height);
 
         return {
@@ -454,6 +465,9 @@ class SlitherlinkGame {
         let attempts = 0;
 
         while (!success && attempts < 10) {
+            attempts++;
+            console.log(`Generation attempt ${attempts}/10...`);
+
             // Clear previous attempt
             for (let i = 0; i <= height; i++) {
                 for (let j = 0; j < width; j++) {
@@ -467,22 +481,33 @@ class SlitherlinkGame {
             }
 
             // Try to generate a serpentine/winding loop
-            if (Math.random() > 0.3) {
+            const useWinding = Math.random() > 0.3;
+            console.log(`  Using ${useWinding ? 'winding' : 'recursive'} algorithm...`);
+
+            if (useWinding) {
                 success = this.generateWindingLoop(width, height, horizontal, vertical);
             } else {
                 success = this.generateRecursiveLoop(width, height, horizontal, vertical);
             }
 
-            // Validate that the loop creates only ONE enclosed region
-            if (success && !this.validateSingleRegion(width, height, horizontal, vertical)) {
-                success = false; // Reject loops with multiple enclosed regions
+            if (!success) {
+                console.log('  Loop generation failed, retrying...');
+                continue;
             }
 
-            attempts++;
+            // Validate that the loop creates only ONE enclosed region
+            console.log('  Validating single region...');
+            if (!this.validateSingleRegion(width, height, horizontal, vertical)) {
+                console.log('  Validation failed: multiple enclosed regions detected');
+                success = false; // Reject loops with multiple enclosed regions
+            } else {
+                console.log('  Validation passed! Loop is valid.');
+            }
         }
 
         // If all attempts failed, use simple rectangular loop (always valid)
         if (!success) {
+            console.log('All attempts failed, using fallback rectangular loop');
             this.generateSimpleRectangularLoop(width, height, horizontal, vertical);
         }
 
