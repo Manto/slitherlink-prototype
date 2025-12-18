@@ -426,7 +426,7 @@ function selectClues(allNumbers, width, height) {
     }
     return clues;
 }
-\`;
+`;
     }
 
     loadPuzzle(index) {
