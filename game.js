@@ -203,19 +203,6 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return array;
     };
 
-    // Get all available cells (not just edges)
-    const getAllAvailableCells = () => {
-        const available = [];
-        for (let row = 0; row < height; row++) {
-            for (let col = 0; col < width; col++) {
-                if (inside[row][col]) {
-                    available.push([row, col]);
-                }
-            }
-        }
-        return available;
-    };
-
     // Get cells on the outside edge of the grid (for first carve)
     const getOutsideEdgeCells = () => {
         const edgeCells = [];
@@ -250,36 +237,6 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             }
         }
         return adjacent;
-    };
-
-    // Get cells NOT adjacent to carved cells
-    const getNonAdjacentCells = () => {
-        const nonAdjacent = [];
-        const adjacentSet = new Set();
-
-        // Mark all cells adjacent to carved cells
-        for (const key of carved) {
-            const [r, c] = key.split(',').map(Number);
-            const neighbors = [
-                [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]
-            ];
-            for (const [nr, nc] of neighbors) {
-                if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
-                    adjacentSet.add(\`\${nr},\${nc}\`);
-                }
-            }
-        }
-
-        // Get all cells that are NOT adjacent to carved cells
-        for (let row = 0; row < height; row++) {
-            for (let col = 0; col < width; col++) {
-                const key = \`\${row},\${col}\`;
-                if (inside[row][col] && !adjacentSet.has(key) && !carved.has(key)) {
-                    nonAdjacent.push([row, col]);
-                }
-            }
-        }
-        return nonAdjacent;
     };
 
     // Helper function to check if removing a cell would clear an entire row or column
@@ -439,24 +396,20 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         let candidates = [];
 
         // Selection strategy:
-        // 1. First carve: prioritize outside edge cells
-        // 2. Otherwise: 50% adjacent to carved, 50% non-adjacent
+        // 1. First carve: MUST be on outside edge (border cells)
+        // 2. All subsequent carves: MUST be adjacent to already carved cells
+        // This ensures all carved cells are connected to the border
         if (carved.size === 0) {
-            // First carve: prefer outside edge cells
+            // First carve: must be outside edge cells
             candidates = getOutsideEdgeCells();
             if (candidates.length === 0) {
-                candidates = getAllAvailableCells();
+                console.log(\`Worker: No outside edge cells available\`);
+                break;
             }
-        } else if (Math.random() < 0.5) {
-            // Try to carve adjacent to existing carved cells
-            candidates = getAdjacentToCarved();
         } else {
-            // Try to carve non-adjacent (start new region)
-            candidates = getNonAdjacentCells();
-            // If no non-adjacent cells available, fall back to adjacent
-            if (candidates.length === 0) {
-                candidates = getAdjacentToCarved();
-            }
+            // All subsequent carves: must be adjacent to existing carved cells
+            // This ensures carved cells form a connected path to the border
+            candidates = getAdjacentToCarved();
         }
 
         // If no candidates available at all, stop
