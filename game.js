@@ -187,9 +187,9 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
     // Start with all cells as inside, then carve away cells from the edges
     const inside = Array(height).fill(null).map(() => Array(width).fill(true));
 
-    // Target: carve until less than 15% of cells have a score of 0
+    // Target: carve until less than 10% of cells have a score of 0
     const totalCells = width * height;
-    const maxZeroPercent = 0.15;
+    const maxZeroPercent = 0.10;
 
     // Track carved cells
     const carved = new Set();
