@@ -256,9 +256,9 @@ class SlitherlinkGame {
     }
 
     nextPuzzle() {
-        // Generate a new random puzzle
-        const width = 5 + Math.floor(Math.random() * 3); // 5-7 width
-        const height = 5 + Math.floor(Math.random() * 3); // 5-7 height
+        // Generate a new random puzzle (always 6x6)
+        const width = 6;
+        const height = 6;
         const newPuzzle = this.generatePuzzle(width, height);
 
         this.gridWidth = newPuzzle.width;
@@ -409,27 +409,12 @@ class SlitherlinkGame {
     }
 
     generateRandomLoop(width, height) {
-        // Generate a random valid loop by building a path that returns to start
+        // Generate a random valid loop with many turns
         const horizontal = Array(height + 1).fill(null).map(() => Array(width).fill(0));
         const vertical = Array(height).fill(null).map(() => Array(width + 1).fill(0));
 
-        // Use a random walk approach to build a loop
-        // Start from a random position
-        let startRow = Math.floor(Math.random() * (height + 1));
-        let startCol = Math.floor(Math.random() * (width + 1));
-
-        // Build path using recursive backtracking
-        const visited = new Set();
-        const path = [];
-
-        const directions = [
-            { dr: 0, dc: 1, type: 'h' },   // right
-            { dr: 0, dc: -1, type: 'h' },  // left
-            { dr: 1, dc: 0, type: 'v' },   // down
-            { dr: -1, dc: 0, type: 'v' }   // up
-        ];
-
-        // Shuffle directions
+        // Use a snake-like pattern to create interesting loops with many turns
+        // Strategy: create a winding path that covers more area
         const shuffle = (array) => {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -438,167 +423,324 @@ class SlitherlinkGame {
             return array;
         };
 
-        const buildLoop = (row, col, pathLength) => {
+        // Try multiple generation strategies
+        let success = false;
+        let attempts = 0;
+
+        while (!success && attempts < 5) {
+            // Clear previous attempt
+            for (let i = 0; i <= height; i++) {
+                for (let j = 0; j < width; j++) {
+                    horizontal[i][j] = 0;
+                }
+            }
+            for (let i = 0; i < height; i++) {
+                for (let j = 0; j <= width; j++) {
+                    vertical[i][j] = 0;
+                }
+            }
+
+            // Try to generate a serpentine/winding loop
+            if (Math.random() > 0.3) {
+                success = this.generateWindingLoop(width, height, horizontal, vertical);
+            } else {
+                success = this.generateRecursiveLoop(width, height, horizontal, vertical);
+            }
+
+            attempts++;
+        }
+
+        // If all attempts failed, use enhanced rectangular loop
+        if (!success) {
+            this.generateEnhancedRectangularLoop(width, height, horizontal, vertical);
+        }
+
+        return { horizontal, vertical };
+    }
+
+    generateWindingLoop(width, height, horizontal, vertical) {
+        // Create a winding serpentine pattern with lots of turns
+        const path = [];
+        const visited = new Set();
+
+        // Start from a random edge
+        let row = Math.floor(Math.random() * (height + 1));
+        let col = Math.floor(Math.random() * (width + 1));
+        const startRow = row;
+        const startCol = col;
+
+        const getKey = (r, c) => `${r},${c}`;
+        let lastDir = null;
+
+        const directions = [
+            { dr: 0, dc: 1, name: 'right', type: 'h' },
+            { dr: 0, dc: -1, name: 'left', type: 'h' },
+            { dr: 1, dc: 0, name: 'down', type: 'v' },
+            { dr: -1, dc: 0, name: 'up', type: 'v' }
+        ];
+
+        const shuffle = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        };
+
+        // Build a path with preference for turning
+        for (let step = 0; step < 100; step++) {
+            visited.add(getKey(row, col));
+
+            // Get available directions
+            let availableDirs = directions.filter(dir => {
+                const newRow = row + dir.dr;
+                const newCol = col + dir.dc;
+                return newRow >= 0 && newRow <= height &&
+                       newCol >= 0 && newCol <= width;
+            });
+
+            // Prefer directions that turn (different from last direction)
+            if (lastDir && Math.random() > 0.3) {
+                const turningDirs = availableDirs.filter(dir => dir.name !== lastDir);
+                if (turningDirs.length > 0) {
+                    availableDirs = turningDirs;
+                }
+            }
+
+            // Can we return to start?
+            if (path.length > 15) {
+                const toStart = availableDirs.find(dir =>
+                    row + dir.dr === startRow && col + dir.dc === startCol
+                );
+                if (toStart && Math.random() > 0.5) {
+                    path.push({ row, col, newRow: startRow, newCol: startCol, dir: toStart.type });
+                    break;
+                }
+            }
+
+            // Filter out visited nodes (but allow start after enough steps)
+            availableDirs = availableDirs.filter(dir => {
+                const newKey = getKey(row + dir.dr, col + dir.dc);
+                return !visited.has(newKey) ||
+                       (path.length > 15 && row + dir.dr === startRow && col + dir.dc === startCol);
+            });
+
+            if (availableDirs.length === 0) {
+                // Dead end - try to return to start if close enough
+                if (path.length > 15 &&
+                    Math.abs(row - startRow) <= 1 &&
+                    Math.abs(col - startCol) <= 1) {
+                    const toStart = directions.find(dir =>
+                        row + dir.dr === startRow && col + dir.dc === startCol
+                    );
+                    if (toStart) {
+                        path.push({ row, col, newRow: startRow, newCol: startCol, dir: toStart.type });
+                        break;
+                    }
+                }
+                return false; // Failed
+            }
+
+            // Pick a random available direction
+            const randomDirs = shuffle([...availableDirs]);
+            const chosenDir = randomDirs[0];
+
+            const newRow = row + chosenDir.dr;
+            const newCol = col + chosenDir.dc;
+
+            path.push({ row, col, newRow, newCol, dir: chosenDir.type });
+            lastDir = chosenDir.name;
+
+            row = newRow;
+            col = newCol;
+        }
+
+        // Check if we made it back to start
+        if (row !== startRow || col !== startCol || path.length < 12) {
+            return false;
+        }
+
+        // Convert path to edges
+        for (const edge of path) {
+            if (edge.dir === 'h') {
+                if (edge.col < edge.newCol) {
+                    horizontal[edge.row][edge.col] = 1;
+                } else {
+                    horizontal[edge.row][edge.newCol] = 1;
+                }
+            } else {
+                if (edge.row < edge.newRow) {
+                    vertical[edge.row][edge.col] = 1;
+                } else {
+                    vertical[edge.newRow][edge.col] = 1;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    generateRecursiveLoop(width, height, horizontal, vertical) {
+        // Similar to original but with better parameters for more turns
+        const visited = new Set();
+        const path = [];
+        const startRow = Math.floor(Math.random() * (height + 1));
+        const startCol = Math.floor(Math.random() * (width + 1));
+
+        const directions = [
+            { dr: 0, dc: 1, type: 'h' },
+            { dr: 0, dc: -1, type: 'h' },
+            { dr: 1, dc: 0, type: 'v' },
+            { dr: -1, dc: 0, type: 'v' }
+        ];
+
+        const shuffle = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        };
+
+        const buildLoop = (row, col, pathLength, lastDir) => {
             const key = `${row},${col}`;
 
-            // If we've made a decent loop and we're back at start, success!
-            if (pathLength > 8 && row === startRow && col === startCol) {
+            if (pathLength > 12 && row === startRow && col === startCol) {
                 return true;
             }
 
-            // If we've been here before (and not at start), backtrack
             if (pathLength > 0 && visited.has(key)) {
                 return false;
             }
 
-            // Mark as visited
             if (pathLength > 0) visited.add(key);
 
-            // Try random directions
-            const randomDirs = shuffle([...directions]);
+            let randomDirs = shuffle([...directions]);
+
+            // Prefer turning
+            if (lastDir !== null && Math.random() > 0.4) {
+                randomDirs.sort((a, b) => {
+                    if (a.type !== lastDir && b.type === lastDir) return -1;
+                    if (a.type === lastDir && b.type !== lastDir) return 1;
+                    return 0;
+                });
+            }
 
             for (const dir of randomDirs) {
                 const newRow = row + dir.dr;
                 const newCol = col + dir.dc;
 
-                // Check bounds
                 if (newRow < 0 || newRow > height || newCol < 0 || newCol > width) {
                     continue;
                 }
 
                 const newKey = `${newRow},${newCol}`;
 
-                // Allow revisiting start after building a path
-                if (pathLength > 8 && newRow === startRow && newCol === startCol) {
-                    // Add the final edge and complete the loop
+                if (pathLength > 12 && newRow === startRow && newCol === startCol) {
                     path.push({ row, col, newRow, newCol, dir: dir.type });
                     return true;
                 }
 
-                // Skip if already visited (unless it's the start and we have a long path)
                 if (visited.has(newKey)) {
                     continue;
                 }
 
-                // Add edge to path
                 path.push({ row, col, newRow, newCol, dir: dir.type });
 
-                // Recurse
-                if (buildLoop(newRow, newCol, pathLength + 1)) {
+                if (buildLoop(newRow, newCol, pathLength + 1, dir.type)) {
                     return true;
                 }
 
-                // Backtrack
                 path.pop();
             }
 
-            // Backtrack visited
             if (pathLength > 0) visited.delete(key);
             return false;
         };
 
-        // Try to build a loop, if it fails, use a simple rectangular loop as fallback
-        let success = buildLoop(startRow, startCol, 0);
-        let attempts = 0;
-
-        while (!success && attempts < 10) {
-            // Reset and try again with new start position
-            visited.clear();
-            path.length = 0;
-            startRow = Math.floor(Math.random() * (height + 1));
-            startCol = Math.floor(Math.random() * (width + 1));
-            success = buildLoop(startRow, startCol, 0);
-            attempts++;
+        if (!buildLoop(startRow, startCol, 0, null) || path.length < 12) {
+            return false;
         }
 
-        // If random generation failed, create a simple but varied rectangular loop
-        if (!success || path.length < 8) {
-            path.length = 0;
-            this.generateRectangularLoop(width, height, horizontal, vertical);
-        } else {
-            // Convert path to edge arrays
-            for (const edge of path) {
-                if (edge.dir === 'h') {
-                    // Horizontal edge
-                    const row = Math.min(edge.row, edge.newRow);
-                    const col = Math.min(edge.col, edge.newCol);
-                    if (edge.col < edge.newCol) {
-                        horizontal[edge.row][edge.col] = 1;
-                    } else {
-                        horizontal[edge.row][edge.newCol] = 1;
-                    }
+        // Convert path to edges
+        for (const edge of path) {
+            if (edge.dir === 'h') {
+                if (edge.col < edge.newCol) {
+                    horizontal[edge.row][edge.col] = 1;
                 } else {
-                    // Vertical edge
-                    const row = Math.min(edge.row, edge.newRow);
-                    const col = Math.min(edge.col, edge.newCol);
-                    if (edge.row < edge.newRow) {
-                        vertical[edge.row][edge.col] = 1;
-                    } else {
-                        vertical[edge.newRow][edge.col] = 1;
-                    }
+                    horizontal[edge.row][edge.newCol] = 1;
+                }
+            } else {
+                if (edge.row < edge.newRow) {
+                    vertical[edge.row][edge.col] = 1;
+                } else {
+                    vertical[edge.newRow][edge.col] = 1;
                 }
             }
         }
 
-        return { horizontal, vertical };
+        return true;
     }
 
-    generateRectangularLoop(width, height, horizontal, vertical) {
-        // Create a rectangular loop with some random variations
+    generateEnhancedRectangularLoop(width, height, horizontal, vertical) {
+        // Create a winding rectangular loop with zigzags for more turns
         const margin = 1;
-        const innerWidth = width - 2 * margin;
-        const innerHeight = height - 2 * margin;
 
-        if (innerWidth < 2 || innerHeight < 2) {
-            // Too small, just make outer rectangle
-            for (let col = 0; col < width; col++) {
-                horizontal[0][col] = 1;
-                horizontal[height][col] = 1;
+        // Create a serpentine pattern within the grid
+        // Start at top-left, snake back and forth
+        let row = margin;
+        let col = margin;
+        let direction = 'right'; // right, down, left, up
+
+        const maxRow = height - margin;
+        const maxCol = width - margin;
+
+        // Go right
+        while (col < maxCol) {
+            horizontal[row][col] = 1;
+            col++;
+        }
+        vertical[row][col] = 1; // Turn down
+
+        // Zigzag down
+        let goingRight = false;
+        while (row < maxRow) {
+            row++;
+            if (row >= maxRow) break;
+
+            if (goingRight) {
+                // Go right with a step
+                for (let c = margin; c < maxCol && row < maxRow; c++) {
+                    horizontal[row][c] = 1;
+                }
+                vertical[row][maxCol] = 1;
+                goingRight = false;
+            } else {
+                // Sometimes add a small zigzag
+                if (Math.random() > 0.5 && row < maxRow - 1) {
+                    // Small detour
+                    const zigCol = margin + Math.floor(Math.random() * (maxCol - margin - 1));
+                    vertical[row][maxCol] = 1;
+                    row++;
+                }
+                goingRight = true;
             }
-            for (let row = 0; row < height; row++) {
-                vertical[row][0] = 1;
-                vertical[row][width] = 1;
-            }
-            return;
         }
 
-        // Create a rectangle with random indentations
-        const topRow = margin;
-        const bottomRow = height - margin;
-        const leftCol = margin;
-        const rightCol = width - margin;
+        // Complete the rectangle if needed
+        row = maxRow;
+        col = maxCol;
 
-        // Top edge
-        for (let col = leftCol; col < rightCol; col++) {
-            horizontal[topRow][col] = 1;
+        // Bottom edge (right to left)
+        while (col > margin) {
+            col--;
+            horizontal[row][col] = 1;
         }
 
-        // Bottom edge
-        for (let col = leftCol; col < rightCol; col++) {
-            horizontal[bottomRow][col] = 1;
-        }
-
-        // Left edge
-        for (let row = topRow; row < bottomRow; row++) {
-            vertical[row][leftCol] = 1;
-        }
-
-        // Right edge
-        for (let row = topRow; row < bottomRow; row++) {
-            vertical[row][rightCol] = 1;
-        }
-
-        // Add some random "bumps" to make it more interesting
-        if (Math.random() > 0.5 && innerWidth > 3) {
-            const bumpCol = leftCol + 1 + Math.floor(Math.random() * (innerWidth - 2));
-            const bumpRow = topRow - 1;
-            if (bumpRow >= 0) {
-                horizontal[topRow][bumpCol] = 0; // Remove part of top
-                horizontal[bumpRow][bumpCol] = 1; // Add bump up
-                vertical[bumpRow][bumpCol] = 1;
-                vertical[bumpRow][bumpCol + 1] = 1;
-                horizontal[topRow][bumpCol] = 0;
-            }
+        // Left edge (bottom to top)
+        while (row > margin) {
+            row--;
+            vertical[row][margin] = 1;
         }
     }
 
@@ -625,35 +767,67 @@ class SlitherlinkGame {
 
     selectClues(allNumbers, width, height) {
         // Select which numbers to reveal as clues
-        // Strategy: reveal about 30-40% of cells, preferring cells with 0, 3, or varied numbers
+        // Strategy: reveal enough clues to avoid blank areas
         const clues = Array(height).fill(null).map(() => Array(width).fill(null));
 
+        // First pass: select clues based on informativeness
         for (let row = 0; row < height; row++) {
             for (let col = 0; col < width; col++) {
                 const num = allNumbers[row][col];
 
-                // Always reveal 0s and 3s (they're very informative)
+                // Reveal clues with weighted probabilities
                 if (num === 0 || num === 3) {
-                    if (Math.random() > 0.2) { // 80% chance
+                    if (Math.random() > 0.15) { // 85% chance
                         clues[row][col] = num;
                     }
                 }
-                // Reveal some 2s (most common)
-                else if (num === 2) {
-                    if (Math.random() > 0.7) { // 30% chance
-                        clues[row][col] = num;
-                    }
-                }
-                // Reveal some 1s
-                else if (num === 1) {
-                    if (Math.random() > 0.6) { // 40% chance
-                        clues[row][col] = num;
-                    }
-                }
-                // Rarely reveal 4s (they're less common)
                 else if (num === 4) {
-                    if (Math.random() > 0.3) { // 70% chance
+                    if (Math.random() > 0.25) { // 75% chance
                         clues[row][col] = num;
+                    }
+                }
+                else if (num === 1) {
+                    if (Math.random() > 0.55) { // 45% chance
+                        clues[row][col] = num;
+                    }
+                }
+                else if (num === 2) {
+                    if (Math.random() > 0.60) { // 40% chance
+                        clues[row][col] = num;
+                    }
+                }
+            }
+        }
+
+        // Second pass: ensure no large blank areas
+        // Divide grid into 2x2 or 3x3 regions and ensure each has clues
+        const regionSize = 3;
+        for (let regionRow = 0; regionRow < height; regionRow += regionSize) {
+            for (let regionCol = 0; regionCol < width; regionCol += regionSize) {
+                // Check if this region has any clues
+                let hasClue = false;
+                const regionEndRow = Math.min(regionRow + regionSize, height);
+                const regionEndCol = Math.min(regionCol + regionSize, width);
+
+                for (let r = regionRow; r < regionEndRow; r++) {
+                    for (let c = regionCol; c < regionEndCol; c++) {
+                        if (clues[r][c] !== null) {
+                            hasClue = true;
+                            break;
+                        }
+                    }
+                    if (hasClue) break;
+                }
+
+                // If region is blank, add 1-2 clues
+                if (!hasClue) {
+                    const attempts = 2;
+                    for (let i = 0; i < attempts; i++) {
+                        const r = regionRow + Math.floor(Math.random() * (regionEndRow - regionRow));
+                        const c = regionCol + Math.floor(Math.random() * (regionEndCol - regionCol));
+                        if (clues[r][c] === null) {
+                            clues[r][c] = allNumbers[r][c];
+                        }
                     }
                 }
             }
