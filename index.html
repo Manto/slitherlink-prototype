@@ -10,16 +10,15 @@
     <div class="container">
         <h1>Slitherlink</h1>
         <div class="instructions">
-            <p><strong>Slitherlink</strong> is a challenging logic puzzle where you must draw a single continuous loop that connects all dots on the grid.</p>
+            <p><strong>Slitherlink</strong> is a challenging logic puzzle where you must draw a single continuous loop.</p>
             <ul>
-                <li><strong>Objective:</strong> Create one continuous loop that visits every dot exactly once</li>
-                <li><strong>Numbers:</strong> Each numbered cell shows exactly how many of its four sides must be part of the loop</li>
+                <li><strong>Objective:</strong> Create one continuous loop connecting vertices</li>
+                <li><strong>Numbers:</strong> Each numbered cell shows how many of its sides must be part of the loop (0-4 for squares, 0-6 for hexagons)</li>
                 <li><strong>Rules:</strong> The loop cannot cross itself and must satisfy every numbered cell</li>
-                <li><strong>Strategy:</strong> Use logical deduction to determine which lines must be drawn and which spaces must be blocked</li>
             </ul>
             <ul>
-                <li><strong>Left click:</strong> Draw a line segment between dots</li>
-                <li><strong>Right click:</strong> Mark a space with X (reminding yourself that no line can go there)</li>
+                <li><strong>Left click:</strong> Draw a line segment between vertices</li>
+                <li><strong>Right click:</strong> Mark with X (no line goes there)</li>
             </ul>
         </div>
         <div class="game-container">
@@ -27,13 +26,28 @@
         </div>
         <div class="controls">
             <div class="top-row">
-                <div class="size-selector">
+                <div class="type-selector">
+                    <label for="boardType">Board Type:</label>
+                    <select id="boardType">
+                        <option value="square">Square</option>
+                        <option value="hexagonal">Hexagonal</option>
+                    </select>
+                </div>
+                <div class="size-selector" id="squareSizeSelector">
                     <label for="boardSize">Board Size:</label>
                     <select id="boardSize">
-                        <option value="5">5x5</option>
-                        <option value="6">6x6</option>
-                        <option value="7">7x7</option>
-                        <option value="8">8x8</option>
+                        <option value="5">5×5</option>
+                        <option value="6">6×6</option>
+                        <option value="7">7×7</option>
+                        <option value="8">8×8</option>
+                    </select>
+                </div>
+                <div class="size-selector" id="hexSizeSelector" style="display: none;">
+                    <label for="hexBoardSize">Board Size:</label>
+                    <select id="hexBoardSize">
+                        <option value="2">3 per side (19 cells)</option>
+                        <option value="3">4 per side (37 cells)</option>
+                        <option value="4">5 per side (61 cells)</option>
                     </select>
                 </div>
                 <button id="newPuzzleBtn">New Puzzle</button>
