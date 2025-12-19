@@ -55,8 +55,20 @@ class SlitherlinkGame {
 ${this.getWorkerCode()}
         `;
         const blob = new Blob([workerCode], { type: 'application/javascript' });
-        const workerUrl = URL.createObjectURL(blob);
-        return new Worker(workerUrl);
+        this.workerUrl = URL.createObjectURL(blob);
+        return new Worker(this.workerUrl);
+    }
+    
+    destroy() {
+        // Terminate worker and revoke blob URL to prevent memory leaks
+        if (this.puzzleWorker) {
+            this.puzzleWorker.terminate();
+            this.puzzleWorker = null;
+        }
+        if (this.workerUrl) {
+            URL.revokeObjectURL(this.workerUrl);
+            this.workerUrl = null;
+        }
     }
 
     getWorkerCode() {
@@ -1686,17 +1698,16 @@ class GameController {
         this.currentGame = null;
         this.currentType = 'square';
         this.sharedWorker = null;
+        this.sharedWorkerUrl = null;
         
         this.init();
     }
     
     init() {
-        // Create shared worker
-        this.createSharedWorker();
-        
-        // Initialize with square game
+        // Initialize with square game (it creates its own worker)
         this.currentGame = new SlitherlinkGame('gameCanvas');
         this.sharedWorker = this.currentGame.puzzleWorker;
+        this.sharedWorkerUrl = this.currentGame.workerUrl;
         
         // Setup board type selector
         document.getElementById('boardType').addEventListener('change', (e) => {
@@ -1711,10 +1722,6 @@ class GameController {
         });
     }
     
-    createSharedWorker() {
-        // Worker will be created by the first game instance
-    }
-    
     switchBoardType(type) {
         this.currentType = type;
         
@@ -1726,15 +1733,25 @@ class GameController {
             squareSelector.style.display = 'flex';
             hexSelector.style.display = 'none';
             
-            // Create new square game
+            // Terminate the previous worker before creating a new one
+            // (When switching hex→square, the old worker is orphaned otherwise)
+            if (this.sharedWorker) {
+                this.sharedWorker.terminate();
+                if (this.sharedWorkerUrl) {
+                    URL.revokeObjectURL(this.sharedWorkerUrl);
+                }
+            }
+            
+            // Create new square game (creates its own worker)
             this.currentGame = new SlitherlinkGame('gameCanvas');
             this.sharedWorker = this.currentGame.puzzleWorker;
+            this.sharedWorkerUrl = this.currentGame.workerUrl;
             
         } else if (type === 'hexagonal') {
             squareSelector.style.display = 'none';
             hexSelector.style.display = 'flex';
             
-            // Create new hex game using the shared worker
+            // Hex game reuses the shared worker from the square game
             this.currentGame = new HexSlitherlink('gameCanvas', this.sharedWorker);
             
             // Setup worker response handler for hex
