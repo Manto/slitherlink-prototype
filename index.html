@@ -10,16 +10,20 @@
     <div class="container">
         <h1>Slitherlink</h1>
         <div class="instructions">
-            <p><strong>Slitherlink</strong> is a challenging logic puzzle where you must draw a single continuous loop.</p>
-            <ul>
-                <li><strong>Objective:</strong> Create one continuous loop connecting vertices</li>
-                <li><strong>Numbers:</strong> Each numbered cell shows how many of its sides must be part of the loop (0-4 for squares, 0-6 for hexagons)</li>
-                <li><strong>Rules:</strong> The loop cannot cross itself and must satisfy every numbered cell</li>
-            </ul>
-            <ul>
-                <li><strong>Left click:</strong> Draw a line segment between vertices</li>
-                <li><strong>Right click:</strong> Mark with X (no line goes there)</li>
-            </ul>
+            <div class="tutorial-section">
+                <div class="tutorial-example">
+                    <canvas id="tutorialValidCanvas"></canvas>
+                    <p class="tutorial-caption">Draw a <strong>closed loop</strong>. Numbers show how many sides of that cell are part of the loop.</p>
+                </div>
+                <div class="tutorial-example">
+                    <canvas id="tutorialInvalidCanvas"></canvas>
+                    <p class="tutorial-caption"><strong>Not allowed:</strong> Open ends or branching paths.</p>
+                </div>
+            </div>
+            <div class="controls-hint">
+                <span><strong>Left click:</strong> Draw line</span>
+                <span><strong>Right click:</strong> Mark X</span>
+            </div>
         </div>
         <div class="game-container">
             <canvas id="gameCanvas"></canvas>

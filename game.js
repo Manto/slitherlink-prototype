@@ -12,8 +12,10 @@
 // ============================================
 
 import { GameController } from './gameController.js?v=1.0.0';
+import { initTutorialDiagrams } from './tutorialDiagrams.js';
 
 // Initialize game controller when page loads
 window.addEventListener('DOMContentLoaded', () => {
+    initTutorialDiagrams();
     new GameController();
 });

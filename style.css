@@ -34,25 +34,54 @@ h1 {
     color: #666;
     margin-bottom: 20px;
     line-height: 1.6;
-    max-width: 600px;
+    max-width: 700px;
     margin-left: auto;
     margin-right: auto;
 }
 
-.instructions ul {
-    margin: 10px 0;
-    padding-left: 20px;
-}
-
-.instructions li {
-    margin-bottom: 8px;
-}
-
-.instructions p {
+.tutorial-section {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
     margin-bottom: 15px;
 }
 
-.instructions strong {
+.tutorial-example {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tutorial-example canvas {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.tutorial-caption {
+    margin-top: 8px;
+    font-size: 13px;
+    text-align: center;
+    max-width: 200px;
+    color: #555;
+}
+
+.tutorial-caption strong {
+    color: #667eea;
+}
+
+.controls-hint {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    font-size: 13px;
+    color: #666;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.controls-hint strong {
     color: #667eea;
 }
 
