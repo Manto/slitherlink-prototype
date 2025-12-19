@@ -1,4 +1,7 @@
 // Tutorial diagram renderer for Slitherlink
+// Track initialization to prevent duplicate event listeners
+let modalInitialized = false;
+
 export function initTutorialDiagrams() {
     initModal();
     drawValidExample();
@@ -6,6 +9,11 @@ export function initTutorialDiagrams() {
 }
 
 function initModal() {
+    // Prevent duplicate initialization
+    if (modalInitialized) {
+        return;
+    }
+
     const modal = document.getElementById('tutorialModal');
     const tutorialBtn = document.getElementById('tutorialBtn');
     const closeBtn = document.getElementById('modalCloseBtn');
@@ -46,12 +54,17 @@ function initModal() {
         }
     });
 
-    // Close modal on Escape key
-    document.addEventListener('keydown', (e) => {
+    // Close modal on Escape key - store reference for potential cleanup
+    function handleEscapeKey(e) {
         if (e.key === 'Escape' && modal.classList.contains('active')) {
             closeModal();
         }
-    });
+    }
+
+    document.addEventListener('keydown', handleEscapeKey);
+
+    // Mark as initialized to prevent duplicates
+    modalInitialized = true;
 }
 
 function drawValidExample() {
