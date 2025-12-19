@@ -36,6 +36,8 @@
                 <div class="size-selector" id="squareSizeSelector">
                     <label for="boardSize">Board Size:</label>
                     <select id="boardSize">
+                        <option value="3">3×3</option>
+                        <option value="4">4×4</option>
                         <option value="5">5×5</option>
                         <option value="6">6×6</option>
                         <option value="7">7×7</option>
@@ -45,6 +47,7 @@
                 <div class="size-selector" id="hexSizeSelector" style="display: none;">
                     <label for="hexBoardSize">Board Size:</label>
                     <select id="hexBoardSize">
+                        <option value="1">2 per side (7 cells)</option>
                         <option value="2">3 per side (19 cells)</option>
                         <option value="3">4 per side (37 cells)</option>
                         <option value="4">5 per side (61 cells)</option>
@@ -59,7 +62,12 @@
             </div>
         </div>
         <div id="message" class="message"></div>
+        <div id="version" class="version"></div>
     </div>
-    <script type="module" src="game.js?v=1.0.0"></script>
+    <script type="module">
+        import { VERSION } from './version.js';
+        document.getElementById('version').textContent = `Version ${VERSION}`;
+    </script>
+    <script type="module" src="game.js?v=1.0.1"></script>
 </body>
 </html>
