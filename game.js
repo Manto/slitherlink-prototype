@@ -11,7 +11,8 @@
 //
 // ============================================
 
-import { GameController } from './gameController.js?v=1.0.0';
+import { VERSION } from './version.js';
+import { GameController } from './gameController.js?v=1.0.1';
 
 // Initialize game controller when page loads
 window.addEventListener('DOMContentLoaded', () => {

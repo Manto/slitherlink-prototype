@@ -3,8 +3,9 @@
 // Manages switching between game types
 // ============================================
 
-import { SlitherlinkGame } from './squareGame.js?v=1.0.0';
-import { HexSlitherlink } from './hexGame.js?v=1.0.0';
+import { VERSION } from './version.js';
+import { SlitherlinkGame } from './squareGame.js?v=1.0.1';
+import { HexSlitherlink } from './hexGame.js?v=1.0.1';
 
 export class GameController {
     constructor() {
