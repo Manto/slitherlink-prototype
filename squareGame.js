@@ -29,6 +29,9 @@ export class SlitherlinkGame {
         // Store bound event handlers for cleanup
         this._boundHandlers = null;
 
+        // Hover state for mouseover effects
+        this.hoveredEdge = null;
+
         // Initialize with default board size (5x5)
         this.setBoardSize(5);
         this.solution = null;
@@ -66,6 +69,8 @@ export class SlitherlinkGame {
         if (this._boundHandlers && this.canvas) {
             this.canvas.removeEventListener('click', this._boundHandlers.canvasClick);
             this.canvas.removeEventListener('contextmenu', this._boundHandlers.canvasContextMenu);
+            this.canvas.removeEventListener('mousemove', this._boundHandlers.canvasMouseMove);
+            this.canvas.removeEventListener('mouseout', this._boundHandlers.canvasMouseOut);
         }
 
         // Remove DOM element event listeners
@@ -152,6 +157,22 @@ export class SlitherlinkGame {
                 const x2 = this.padding + (col + 1) * this.cellSize;
                 const y = this.padding + row * this.cellSize;
 
+                // Draw hover highlight if this edge is being hovered
+                const isHovered = this.hoveredEdge &&
+                    this.hoveredEdge.type === 'horizontal' &&
+                    this.hoveredEdge.row === row &&
+                    this.hoveredEdge.col === col;
+
+                if (isHovered && state === 0) {
+                    this.ctx.strokeStyle = '#ddd';
+                    this.ctx.lineWidth = this.lineWidth;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x1, y);
+                    this.ctx.lineTo(x2, y);
+                    this.ctx.stroke();
+                }
+
                 if (state === 1) {
                     this.ctx.strokeStyle = '#000';
                     this.ctx.lineWidth = this.lineWidth;
@@ -173,6 +194,22 @@ export class SlitherlinkGame {
                 const x = this.padding + col * this.cellSize;
                 const y1 = this.padding + row * this.cellSize;
                 const y2 = this.padding + (row + 1) * this.cellSize;
+
+                // Draw hover highlight if this edge is being hovered
+                const isHovered = this.hoveredEdge &&
+                    this.hoveredEdge.type === 'vertical' &&
+                    this.hoveredEdge.row === row &&
+                    this.hoveredEdge.col === col;
+
+                if (isHovered && state === 0) {
+                    this.ctx.strokeStyle = '#ddd';
+                    this.ctx.lineWidth = this.lineWidth;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, y1);
+                    this.ctx.lineTo(x, y2);
+                    this.ctx.stroke();
+                }
 
                 if (state === 1) {
                     this.ctx.strokeStyle = '#000';
@@ -212,6 +249,8 @@ export class SlitherlinkGame {
                 e.preventDefault();
                 this.handleClick(e, 'right');
             },
+            canvasMouseMove: (e) => this.handleMouseMove(e),
+            canvasMouseOut: () => this.handleMouseOut(),
             boardSizeChange: () => this.handleBoardSizeChange(),
             clearClick: () => this.clearBoard(),
             checkClick: () => this.checkSolution(),
@@ -221,6 +260,8 @@ export class SlitherlinkGame {
 
         this.canvas.addEventListener('click', this._boundHandlers.canvasClick);
         this.canvas.addEventListener('contextmenu', this._boundHandlers.canvasContextMenu);
+        this.canvas.addEventListener('mousemove', this._boundHandlers.canvasMouseMove);
+        this.canvas.addEventListener('mouseout', this._boundHandlers.canvasMouseOut);
 
         document.getElementById('boardSize').addEventListener('change', this._boundHandlers.boardSizeChange);
         document.getElementById('clearBtn').addEventListener('click', this._boundHandlers.clearClick);
@@ -253,7 +294,35 @@ export class SlitherlinkGame {
                 }
             }
             this.draw();
+            this.checkPuzzleSolved();
         }
+    }
+
+    handleMouseMove(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const edge = this.getEdgeFromPosition(x, y);
+        const edgeChanged = !this.edgesEqual(this.hoveredEdge, edge);
+
+        if (edgeChanged) {
+            this.hoveredEdge = edge;
+            this.draw();
+        }
+    }
+
+    handleMouseOut() {
+        if (this.hoveredEdge !== null) {
+            this.hoveredEdge = null;
+            this.draw();
+        }
+    }
+
+    edgesEqual(edge1, edge2) {
+        if (edge1 === null && edge2 === null) return true;
+        if (edge1 === null || edge2 === null) return false;
+        return edge1.type === edge2.type && edge1.row === edge2.row && edge1.col === edge2.col;
     }
 
     getEdgeFromPosition(x, y) {
@@ -305,6 +374,7 @@ export class SlitherlinkGame {
             .map(() => Array(this.gridWidth).fill(0));
         this.verticalEdges = Array(this.gridHeight).fill(null)
             .map(() => Array(this.gridWidth + 1).fill(0));
+        this.hoveredEdge = null;
         this.draw();
         this.showMessage('Board cleared!', 'info');
     }
@@ -356,6 +426,7 @@ export class SlitherlinkGame {
             .map(() => Array(this.gridWidth).fill(0));
         this.verticalEdges = Array(this.gridHeight).fill(null)
             .map(() => Array(this.gridWidth + 1).fill(0));
+        this.hoveredEdge = null;
 
         this.setupCanvas();
         this.draw();
@@ -368,31 +439,60 @@ export class SlitherlinkGame {
 
     checkSolution() {
         const numbersValid = checkSquareNumbers(
-            this.numbers, 
-            this.horizontalEdges, 
-            this.verticalEdges, 
-            this.gridWidth, 
+            this.numbers,
+            this.horizontalEdges,
+            this.verticalEdges,
+            this.gridWidth,
             this.gridHeight
         );
-        
+
         if (!numbersValid) {
             this.showMessage('Numbers constraint violated! Check the number of lines around each number.', 'error');
             return;
         }
 
         const loopValid = checkSquareLoop(
-            this.horizontalEdges, 
-            this.verticalEdges, 
-            this.gridWidth, 
+            this.horizontalEdges,
+            this.verticalEdges,
+            this.gridWidth,
             this.gridHeight
         );
-        
+
         if (!loopValid) {
             this.showMessage('Must form a single continuous loop with no branches!', 'error');
             return;
         }
 
         this.showMessage('Congratulations! Puzzle solved correctly! 🎉', 'success');
+    }
+
+    checkPuzzleSolved() {
+        const numbersValid = checkSquareNumbers(
+            this.numbers,
+            this.horizontalEdges,
+            this.verticalEdges,
+            this.gridWidth,
+            this.gridHeight
+        );
+
+        if (!numbersValid) {
+            return;
+        }
+
+        const loopValid = checkSquareLoop(
+            this.horizontalEdges,
+            this.verticalEdges,
+            this.gridWidth,
+            this.gridHeight
+        );
+
+        if (loopValid) {
+            // Show the solved modal
+            const gameController = window.gameControllerInstance;
+            if (gameController) {
+                gameController.showSolvedModal();
+            }
+        }
     }
 
     // ============================================

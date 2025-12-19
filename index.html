@@ -74,6 +74,20 @@
         </div>
     </div>
 
+    <!-- Puzzle Solved Modal -->
+    <div id="solvedModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="solvedModalTitle" aria-hidden="true">
+        <div class="modal-content solved-modal-content">
+            <h2 id="solvedModalTitle">🎉 Congratulations! 🎉</h2>
+            <div class="solved-message">
+                <p>You have solved the puzzle!</p>
+            </div>
+            <div class="solved-buttons">
+                <button id="playAgainBtn" class="play-again-btn">Play Again</button>
+                <button id="closeSolvedBtn" class="close-solved-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { VERSION } from './version.js';
         document.getElementById('version').textContent = `Version ${VERSION}`;

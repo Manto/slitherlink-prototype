@@ -12,21 +12,25 @@ export class GameController {
         this.currentType = 'square';
         this.sharedWorker = null;
         this.sharedWorkerUrl = null;
-        
+
         this.init();
+        this.setupSolvedModal();
     }
     
     init() {
+        // Store global reference for solved modal access
+        window.gameControllerInstance = this;
+
         // Initialize with square game (it creates its own worker)
         this.currentGame = new SlitherlinkGame('gameCanvas');
         this.sharedWorker = this.currentGame.puzzleWorker;
         this.sharedWorkerUrl = this.currentGame.workerUrl;
-        
+
         // Setup board type selector
         document.getElementById('boardType').addEventListener('change', (e) => {
             this.switchBoardType(e.target.value);
         });
-        
+
         // Setup hex size selector
         document.getElementById('hexBoardSize').addEventListener('change', () => {
             if (this.currentType === 'hexagonal' && this.currentGame) {
@@ -107,6 +111,52 @@ export class GameController {
             boardSizeSelect.parentNode.replaceChild(newBoardSizeSelect, boardSizeSelect);
             newBoardSizeSelect.addEventListener('change', () => this.currentGame.handleBoardSizeChange());
         }
+    }
+
+    setupSolvedModal() {
+        const modal = document.getElementById('solvedModal');
+        const closeBtn = document.getElementById('closeSolvedBtn');
+        const playAgainBtn = document.getElementById('playAgainBtn');
+
+        // Close modal when clicking the close button
+        closeBtn.addEventListener('click', () => {
+            this.hideSolvedModal();
+        });
+
+        // Close modal when clicking outside the modal content
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.hideSolvedModal();
+            }
+        });
+
+        // Play again button
+        playAgainBtn.addEventListener('click', () => {
+            this.hideSolvedModal();
+            this.currentGame.nextPuzzle();
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('active')) {
+                this.hideSolvedModal();
+            }
+        });
+    }
+
+    showSolvedModal() {
+        const modal = document.getElementById('solvedModal');
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+
+        // Focus the play again button for accessibility
+        document.getElementById('playAgainBtn').focus();
+    }
+
+    hideSolvedModal() {
+        const modal = document.getElementById('solvedModal');
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
     }
 }
 

@@ -44,6 +44,9 @@ export class HexSlitherlink {
         this.numbers = {};
         this.edges = {};
         this.solution = null;
+
+        // Hover state for mouseover effects
+        this.hoveredEdge = null;
         
         this.setupCanvas();
         this.generateCells();
@@ -211,7 +214,20 @@ export class HexSlitherlink {
                     const v1 = vertices[i];
                     const v2 = vertices[(i + 1) % 6];
                     const state = this.edges[key] || 0;
-                    
+
+                    // Draw hover highlight if this edge is being hovered and not already drawn
+                    const isHovered = this.hoveredEdge && this.hoveredEdge.key === key;
+
+                    if (isHovered && state === 0) {
+                        this.ctx.strokeStyle = '#ddd';
+                        this.ctx.lineWidth = this.lineWidth;
+                        this.ctx.lineCap = 'round';
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(v1.x, v1.y);
+                        this.ctx.lineTo(v2.x, v2.y);
+                        this.ctx.stroke();
+                    }
+
                     if (state === 1) {
                         this.ctx.strokeStyle = '#000';
                         this.ctx.lineWidth = this.lineWidth;
@@ -269,15 +285,17 @@ export class HexSlitherlink {
             e.preventDefault();
             this.handleClick(e, 'right');
         });
+        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.canvas.addEventListener('mouseout', () => this.handleMouseOut());
     }
     
     handleClick(e, button) {
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        
+
         const edge = this.getEdgeFromPosition(x, y);
-        
+
         if (edge) {
             const currentState = this.edges[edge.key] || 0;
             if (button === 'left') {
@@ -286,6 +304,7 @@ export class HexSlitherlink {
                 this.edges[edge.key] = currentState === 2 ? 0 : 2;
             }
             this.draw();
+            this.checkPuzzleSolved();
         }
     }
     
@@ -346,6 +365,33 @@ export class HexSlitherlink {
         return Math.sqrt((px - closestX) ** 2 + (py - closestY) ** 2);
     }
 
+    handleMouseMove(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const edge = this.getEdgeFromPosition(x, y);
+        const edgeChanged = !this.edgesEqual(this.hoveredEdge, edge);
+
+        if (edgeChanged) {
+            this.hoveredEdge = edge;
+            this.draw();
+        }
+    }
+
+    handleMouseOut() {
+        if (this.hoveredEdge !== null) {
+            this.hoveredEdge = null;
+            this.draw();
+        }
+    }
+
+    edgesEqual(edge1, edge2) {
+        if (edge1 === null && edge2 === null) return true;
+        if (edge1 === null || edge2 === null) return false;
+        return edge1.key === edge2.key;
+    }
+
     // ============================================
     // GAME ACTIONS
     // ============================================
@@ -359,6 +405,7 @@ export class HexSlitherlink {
     
     clearBoard() {
         this.edges = {};
+        this.hoveredEdge = null;
         this.draw();
         this.showMessage('Board cleared!', 'info');
     }
@@ -394,7 +441,8 @@ export class HexSlitherlink {
         this.numbers = puzzle.numbers;
         this.solution = puzzle.solution;
         this.edges = {};
-        
+        this.hoveredEdge = null;
+
         this.setupCanvas();
         this.setupEventListeners();
         this.draw();
@@ -411,19 +459,41 @@ export class HexSlitherlink {
             this.showMessage('Numbers constraint violated! Check the number of lines around each number.', 'error');
             return;
         }
-        
+
         // Pass getHexVertices as a bound method for the loop check
         const loopValid = checkHexLoop(
-            this.cells, 
-            this.edges, 
+            this.cells,
+            this.edges,
             (q, r) => this.getHexVertices(q, r)
         );
         if (!loopValid) {
             this.showMessage('Must form a single continuous loop with no branches!', 'error');
             return;
         }
-        
+
         this.showMessage('Congratulations! Puzzle solved correctly! 🎉', 'success');
+    }
+
+    checkPuzzleSolved() {
+        const numbersValid = checkHexNumbers(this.cells, this.numbers, this.edges);
+        if (!numbersValid) {
+            return;
+        }
+
+        // Pass getHexVertices as a bound method for the loop check
+        const loopValid = checkHexLoop(
+            this.cells,
+            this.edges,
+            (q, r) => this.getHexVertices(q, r)
+        );
+
+        if (loopValid) {
+            // Show the solved modal
+            const gameController = window.gameControllerInstance;
+            if (gameController) {
+                gameController.showSolvedModal();
+            }
+        }
     }
 
     // ============================================
