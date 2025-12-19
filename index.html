@@ -4,22 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Slitherlink Puzzle</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" id="main-stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Slitherlink</h1>
-        <div class="instructions">
-            <p><strong>Slitherlink</strong> is a challenging logic puzzle where you must draw a single continuous loop.</p>
-            <ul>
-                <li><strong>Objective:</strong> Create one continuous loop connecting vertices</li>
-                <li><strong>Numbers:</strong> Each numbered cell shows how many of its sides must be part of the loop (0-4 for squares, 0-6 for hexagons)</li>
-                <li><strong>Rules:</strong> The loop cannot cross itself and must satisfy every numbered cell</li>
-            </ul>
-            <ul>
-                <li><strong>Left click:</strong> Draw a line segment between vertices</li>
-                <li><strong>Right click:</strong> Mark with X (no line goes there)</li>
-            </ul>
+        <div class="header-row">
+            <h1>Slitherlink</h1>
+            <button id="tutorialBtn" class="help-btn">How to Play?</button>
         </div>
         <div class="game-container">
             <canvas id="gameCanvas"></canvas>
@@ -64,10 +55,35 @@
         <div id="message" class="message"></div>
         <div id="version" class="version"></div>
     </div>
+
+    <!-- Tutorial Modal -->
+    <div id="tutorialModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-hidden="true">
+        <div class="modal-content">
+            <button class="modal-close" id="modalCloseBtn" aria-label="Close tutorial">&times;</button>
+            <h2 id="modalTitle">How to Play</h2>
+            <div class="tutorial-section">
+                <div class="tutorial-example">
+                    <canvas id="tutorialValidCanvas"></canvas>
+                    <p class="tutorial-caption">Draw a <strong>closed loop</strong> by clicking between the points. Numbers show how many sides of that cell are part of the loop.</p>
+                </div>
+                <div class="tutorial-example">
+                    <canvas id="tutorialInvalidCanvas"></canvas>
+                    <p class="tutorial-caption"><strong>Not allowed:</strong> Open ends or branching paths.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { VERSION } from './version.js';
         document.getElementById('version').textContent = `Version ${VERSION}`;
+        
+        // Apply version to stylesheet for cache busting
+        const stylesheet = document.getElementById('main-stylesheet');
+        stylesheet.href = `style.css?v=${VERSION}`;
+        
+        // Dynamically import main game script with version for cache busting
+        import(`./game.js?v=${VERSION}`);
     </script>
-    <script type="module" src="game.js?v=1.0.1"></script>
 </body>
 </html>

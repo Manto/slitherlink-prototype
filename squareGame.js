@@ -2,13 +2,12 @@
 // SQUARE GRID SLITHERLINK GAME
 // ============================================
 
-import { VERSION } from './version.js';
 import {
     createInlineWorker,
     destroyWorker,
     checkSquareNumbers,
     checkSquareLoop
-} from './boardLogic.js?v=1.0.1';
+} from './boardLogic.js';
 
 export class SlitherlinkGame {
     constructor(canvasId) {

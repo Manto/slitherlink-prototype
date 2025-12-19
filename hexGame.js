@@ -2,7 +2,6 @@
 // HEXAGONAL SLITHERLINK GAME
 // ============================================
 
-import { VERSION } from './version.js';
 import {
     createInlineWorker,
     destroyWorker,
@@ -11,7 +10,7 @@ import {
     hexEdgeKey,
     checkHexNumbers,
     checkHexLoop
-} from './boardLogic.js?v=1.0.1';
+} from './boardLogic.js';
 
 export class HexSlitherlink {
     constructor(canvasId, worker = null) {
@@ -39,8 +38,8 @@ export class HexSlitherlink {
             };
         }
         
-        // Initialize with default radius
-        this.radius = 2;
+        // Initialize with selected radius from dropdown
+        this.radius = this.getSelectedRadius();
         this.cells = [];
         this.numbers = {};
         this.edges = {};
@@ -131,10 +130,17 @@ export class HexSlitherlink {
     // ============================================
     
     setupCanvas() {
-        const width = this.hexSize * 3.5 * (this.radius * 2 + 1) + 2 * this.padding;
-        const height = this.hexSize * 2 * Math.sqrt(3) * (this.radius + 0.5) + 2 * this.padding;
-        this.canvas.width = Math.max(400, width);
-        this.canvas.height = Math.max(400, height);
+        // Calculate tighter canvas dimensions based on actual hex grid size
+        // Hex width = sqrt(3) * hexSize, hex height = 2 * hexSize
+        const hexWidth = Math.sqrt(3) * this.hexSize;
+        const hexHeight = 2 * this.hexSize;
+        
+        // Grid spans (2*radius + 1) hexes horizontally, with 3/4 overlap vertically
+        const width = hexWidth * (this.radius * 2 + 1) + 2 * this.padding;
+        const height = hexHeight * (this.radius * 1.5 + 1) + 2 * this.padding;
+        
+        this.canvas.width = Math.max(300, Math.ceil(width));
+        this.canvas.height = Math.max(300, Math.ceil(height));
         
         this.centerX = this.canvas.width / 2;
         this.centerY = this.canvas.height / 2;
