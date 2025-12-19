@@ -503,6 +503,10 @@ function extractNumbersFromSolution(width, height, horizontal, vertical) {
 
 function selectClues(allNumbers, width, height) {
     const clues = Array(height).fill(null).map(() => Array(width).fill(null));
+    const totalCells = width * height;
+    const maxClues = Math.floor(totalCells * 0.5); // Maximum 50% of cells can have clues
+
+    // Phase 1: Initial random selection based on number value
     for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
             const num = allNumbers[row][col];
@@ -517,6 +521,8 @@ function selectClues(allNumbers, width, height) {
             }
         }
     }
+
+    // Phase 2: Ensure every 3x3 region has at least one clue
     const regionSize = 3;
     for (let regionRow = 0; regionRow < height; regionRow += regionSize) {
         for (let regionCol = 0; regionCol < width; regionCol += regionSize) {
@@ -542,6 +548,39 @@ function selectClues(allNumbers, width, height) {
             }
         }
     }
+
+    // Phase 3: Enforce 50% maximum constraint
+    // Count current clues
+    let clueCount = 0;
+    const cluePositions = [];
+    for (let row = 0; row < height; row++) {
+        for (let col = 0; col < width; col++) {
+            if (clues[row][col] !== null) {
+                clueCount++;
+                cluePositions.push([row, col]);
+            }
+        }
+    }
+
+    // If we have too many clues, randomly remove the excess
+    if (clueCount > maxClues) {
+        const toRemove = clueCount - maxClues;
+        console.log(\`Worker: Reducing clues from \${clueCount} to \${maxClues} (removing \${toRemove})\`);
+
+        // Shuffle clue positions to randomly select which ones to remove
+        for (let i = cluePositions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [cluePositions[i], cluePositions[j]] = [cluePositions[j], cluePositions[i]];
+        }
+
+        // Remove excess clues
+        for (let i = 0; i < toRemove; i++) {
+            const [row, col] = cluePositions[i];
+            clues[row][col] = null;
+        }
+    }
+
+    console.log(\`Worker: Final clue count: \${maxClues} / \${totalCells} cells (\${((maxClues / totalCells) * 100).toFixed(1)}%)\`);
     return clues;
 }
 `;
