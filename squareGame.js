@@ -26,6 +26,9 @@ export class SlitherlinkGame {
         this.workerUrl = workerUrl;
         this.puzzleWorker.onmessage = (e) => this.handleWorkerResponse(e.data);
 
+        // Store bound event handlers for cleanup
+        this._boundHandlers = null;
+
         // Initialize with default board size (5x5)
         this.setBoardSize(5);
         this.solution = null;
@@ -59,6 +62,30 @@ export class SlitherlinkGame {
     }
 
     destroy() {
+        // Remove canvas event listeners
+        if (this._boundHandlers && this.canvas) {
+            this.canvas.removeEventListener('click', this._boundHandlers.canvasClick);
+            this.canvas.removeEventListener('contextmenu', this._boundHandlers.canvasContextMenu);
+        }
+
+        // Remove DOM element event listeners
+        if (this._boundHandlers) {
+            const boardSize = document.getElementById('boardSize');
+            const clearBtn = document.getElementById('clearBtn');
+            const checkBtn = document.getElementById('checkBtn');
+            const showSolutionBtn = document.getElementById('showSolutionBtn');
+            const newPuzzleBtn = document.getElementById('newPuzzleBtn');
+
+            if (boardSize) boardSize.removeEventListener('change', this._boundHandlers.boardSizeChange);
+            if (clearBtn) clearBtn.removeEventListener('click', this._boundHandlers.clearClick);
+            if (checkBtn) checkBtn.removeEventListener('click', this._boundHandlers.checkClick);
+            if (showSolutionBtn) showSolutionBtn.removeEventListener('click', this._boundHandlers.showSolutionClick);
+            if (newPuzzleBtn) newPuzzleBtn.removeEventListener('click', this._boundHandlers.newPuzzleClick);
+        }
+
+        this._boundHandlers = null;
+
+        // Terminate worker and revoke blob URL
         destroyWorker(this.puzzleWorker, this.workerUrl);
         this.puzzleWorker = null;
         this.workerUrl = null;
@@ -178,17 +205,28 @@ export class SlitherlinkGame {
     // ============================================
 
     setupEventListeners() {
-        this.canvas.addEventListener('click', (e) => this.handleClick(e, 'left'));
-        this.canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            this.handleClick(e, 'right');
-        });
+        // Create bound handlers that can be removed later
+        this._boundHandlers = {
+            canvasClick: (e) => this.handleClick(e, 'left'),
+            canvasContextMenu: (e) => {
+                e.preventDefault();
+                this.handleClick(e, 'right');
+            },
+            boardSizeChange: () => this.handleBoardSizeChange(),
+            clearClick: () => this.clearBoard(),
+            checkClick: () => this.checkSolution(),
+            showSolutionClick: () => this.showSolution(),
+            newPuzzleClick: () => this.nextPuzzle()
+        };
 
-        document.getElementById('boardSize').addEventListener('change', () => this.handleBoardSizeChange());
-        document.getElementById('clearBtn').addEventListener('click', () => this.clearBoard());
-        document.getElementById('checkBtn').addEventListener('click', () => this.checkSolution());
-        document.getElementById('showSolutionBtn').addEventListener('click', () => this.showSolution());
-        document.getElementById('newPuzzleBtn').addEventListener('click', () => this.nextPuzzle());
+        this.canvas.addEventListener('click', this._boundHandlers.canvasClick);
+        this.canvas.addEventListener('contextmenu', this._boundHandlers.canvasContextMenu);
+
+        document.getElementById('boardSize').addEventListener('change', this._boundHandlers.boardSizeChange);
+        document.getElementById('clearBtn').addEventListener('click', this._boundHandlers.clearClick);
+        document.getElementById('checkBtn').addEventListener('click', this._boundHandlers.checkClick);
+        document.getElementById('showSolutionBtn').addEventListener('click', this._boundHandlers.showSolutionClick);
+        document.getElementById('newPuzzleBtn').addEventListener('click', this._boundHandlers.newPuzzleClick);
     }
 
     handleClick(e, button) {
