@@ -12,11 +12,18 @@
 // ============================================
 
 import { initTutorialDiagrams } from './tutorialDiagrams.js';
-import { VERSION } from './version.js';
-import { GameController } from './gameController.js?v=1.0.1';
+import { GameController } from './gameController.js';
 
 // Initialize game controller when page loads
-window.addEventListener('DOMContentLoaded', () => {
+function init() {
     initTutorialDiagrams();
     new GameController();
-});
+}
+
+// Handle both cases: script loaded before or after DOMContentLoaded
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', init);
+} else {
+    // DOM already loaded, run immediately
+    init();
+}

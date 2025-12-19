@@ -4,11 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Slitherlink Puzzle</title>
-    <link rel="stylesheet" href="style.css?v=1.0.2">
+    <link rel="stylesheet" id="main-stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Slitherlink</h1>
+        <div class="header-row">
+            <h1>Slitherlink</h1>
+            <button id="tutorialBtn" class="help-btn">How to Play?</button>
+        </div>
         <div class="game-container">
             <canvas id="gameCanvas"></canvas>
         </div>
@@ -47,7 +50,6 @@
                 <button id="clearBtn">Clear Board</button>
                 <button id="checkBtn">Check Solution</button>
                 <button id="showSolutionBtn">Show Solution</button>
-                <button id="tutorialBtn">Tutorial</button>
             </div>
         </div>
         <div id="message" class="message"></div>
@@ -75,7 +77,13 @@
     <script type="module">
         import { VERSION } from './version.js';
         document.getElementById('version').textContent = `Version ${VERSION}`;
+        
+        // Apply version to stylesheet for cache busting
+        const stylesheet = document.getElementById('main-stylesheet');
+        stylesheet.href = `style.css?v=${VERSION}`;
+        
+        // Dynamically import main game script with version for cache busting
+        import(`./game.js?v=${VERSION}`);
     </script>
-    <script type="module" src="game.js?v=1.0.1"></script>
 </body>
 </html>

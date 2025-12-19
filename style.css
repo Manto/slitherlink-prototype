@@ -23,11 +23,33 @@ body {
     width: 100%;
 }
 
+.header-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
 h1 {
     text-align: center;
     color: #333;
-    margin-bottom: 10px;
+    margin: 0;
     font-size: 2.5em;
+}
+
+.help-btn {
+    background: transparent;
+    color: #667eea;
+    border: 2px solid #667eea;
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 20px;
+}
+
+.help-btn:hover {
+    background: #667eea;
+    color: white;
 }
 
 /* Modal styles */

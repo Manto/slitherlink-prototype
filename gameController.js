@@ -3,9 +3,8 @@
 // Manages switching between game types
 // ============================================
 
-import { VERSION } from './version.js';
-import { SlitherlinkGame } from './squareGame.js?v=1.0.1';
-import { HexSlitherlink } from './hexGame.js?v=1.0.1';
+import { SlitherlinkGame } from './squareGame.js';
+import { HexSlitherlink } from './hexGame.js';
 
 export class GameController {
     constructor() {
@@ -65,6 +64,9 @@ export class GameController {
         } else if (type === 'hexagonal') {
             squareSelector.style.display = 'none';
             hexSelector.style.display = 'flex';
+            
+            // Reset hex dropdown to first option (2 per side)
+            document.getElementById('hexBoardSize').value = '1';
             
             // Create new hex game
             this.currentGame = new HexSlitherlink('gameCanvas', null);
