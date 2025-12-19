@@ -1215,8 +1215,18 @@ class HexSlitherlink {
         this.dotRadius = 4;
         this.lineWidth = 4;
         
-        // Use the shared worker
-        this.puzzleWorker = worker;
+        // Create or use provided worker
+        if (worker) {
+            this.worker = worker;
+            this.workerUrl = null; // Don't own the worker URL if using shared worker
+        } else {
+            this.worker = this.createInlineWorker();
+            this.worker.onmessage = (e) => {
+                if (e.data.type === 'hexagonal') {
+                    this.handleWorkerResponse(e.data);
+                }
+            };
+        }
         
         // Initialize with default radius
         this.radius = 2; // 3 hexagons per side
@@ -1231,7 +1241,17 @@ class HexSlitherlink {
         
         // Generate initial puzzle
         this.showMessage('Generating hexagonal puzzle...', 'info');
-        this.puzzleWorker.postMessage({ type: 'hexagonal', radius: this.radius });
+        this.worker.postMessage({ type: 'hexagonal', radius: this.radius });
+    }
+    
+    createInlineWorker() {
+        // Create worker from inline code (reuses the same worker code as square game)
+        // Get worker code from SlitherlinkGame class
+        const tempGame = { getWorkerCode: SlitherlinkGame.prototype.getWorkerCode };
+        const workerCode = tempGame.getWorkerCode();
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        this.workerUrl = URL.createObjectURL(blob);
+        return new Worker(this.workerUrl);
     }
     
     getSelectedRadius() {
@@ -1278,6 +1298,28 @@ class HexSlitherlink {
             e.preventDefault();
             this.handleClick(e, 'right');
         });
+    }
+    
+    destroy() {
+        // Clean up canvas event listeners by cloning
+        if (this.canvas && this.canvas.parentNode) {
+            const newCanvas = this.canvas.cloneNode(true);
+            this.canvas.parentNode.replaceChild(newCanvas, this.canvas);
+        }
+        
+        // Terminate worker and revoke blob URL to prevent memory leaks
+        if (this.worker) {
+            this.worker.terminate();
+            this.worker = null;
+        }
+        if (this.workerUrl) {
+            URL.revokeObjectURL(this.workerUrl);
+            this.workerUrl = null;
+        }
+        
+        // Clear references
+        this.canvas = null;
+        this.ctx = null;
     }
     
     // Convert axial coordinates to pixel coordinates (pointy-top hexagon)
@@ -1543,7 +1585,7 @@ class HexSlitherlink {
     nextPuzzle() {
         this.showMessage('Generating hexagonal puzzle...', 'info');
         console.log('Starting hex puzzle generation in worker...');
-        this.puzzleWorker.postMessage({ type: 'hexagonal', radius: this.radius });
+        this.worker.postMessage({ type: 'hexagonal', radius: this.radius });
     }
     
     handleWorkerResponse(puzzle) {
@@ -1729,18 +1771,19 @@ class GameController {
         const squareSelector = document.getElementById('squareSizeSelector');
         const hexSelector = document.getElementById('hexSizeSelector');
         
+        // Destroy the old game instance before creating a new one
+        if (this.currentGame) {
+            this.currentGame.destroy();
+            this.currentGame = null;
+        }
+        
+        // Clean up shared worker references (each mode creates its own worker)
+        this.sharedWorker = null;
+        this.sharedWorkerUrl = null;
+        
         if (type === 'square') {
             squareSelector.style.display = 'flex';
             hexSelector.style.display = 'none';
-            
-            // Terminate the previous worker before creating a new one
-            // (When switching hex→square, the old worker is orphaned otherwise)
-            if (this.sharedWorker) {
-                this.sharedWorker.terminate();
-                if (this.sharedWorkerUrl) {
-                    URL.revokeObjectURL(this.sharedWorkerUrl);
-                }
-            }
             
             // Create new square game (creates its own worker)
             this.currentGame = new SlitherlinkGame('gameCanvas');
@@ -1751,15 +1794,10 @@ class GameController {
             squareSelector.style.display = 'none';
             hexSelector.style.display = 'flex';
             
-            // Hex game reuses the shared worker from the square game
-            this.currentGame = new HexSlitherlink('gameCanvas', this.sharedWorker);
-            
-            // Setup worker response handler for hex
-            this.sharedWorker.onmessage = (e) => {
-                if (e.data.type === 'hexagonal') {
-                    this.currentGame.handleWorkerResponse(e.data);
-                }
-            };
+            // Create new hex game (creates its own worker)
+            this.currentGame = new HexSlitherlink('gameCanvas', null);
+            this.sharedWorker = this.currentGame.worker;
+            this.sharedWorkerUrl = this.currentGame.workerUrl;
         }
         
         // Rebind button handlers
