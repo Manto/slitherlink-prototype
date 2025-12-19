@@ -44,13 +44,14 @@
 <body>
     <h1>Slitherlink Puzzle Generation Tests</h1>
 
-    <button onclick="runAllTests()">Run All Tests</button>
-    <button onclick="clearResults()">Clear Results</button>
+    <button id="runAllBtn">Run All Tests</button>
+    <button id="clearBtn">Clear Results</button>
 
     <div id="results"></div>
 
-    <script src="game.js"></script>
-    <script>
+    <script type="module">
+        import { SlitherlinkGame } from './squareGame.js?v=1.0.0';
+
         function log(message, type = 'info') {
             const results = document.getElementById('results');
             const section = document.createElement('div');
@@ -67,21 +68,18 @@
             log('TEST 1: Verifying that carving actually removes cells', 'info');
 
             const width = 6, height = 6;
-            const horizontal = Array(height + 1).fill(null).map(() => Array(width).fill(0));
-            const vertical = Array(height).fill(null).map(() => Array(width + 1).fill(0));
 
-            // Call the generation function directly (it's in the worker code, so we need to extract it)
-            // For now, let's test via the worker
+            // Create a game instance for testing
             const game = new SlitherlinkGame('testCanvas');
 
             // Generate a puzzle and check
-            game.puzzleWorker.postMessage({ width: 6, height: 6 });
+            game.puzzleWorker.postMessage({ type: 'square', width: 6, height: 6 });
 
             game.puzzleWorker.onmessage = (e) => {
+                if (e.data.type !== 'square') return;
                 const puzzle = e.data;
 
                 // Count cells by checking which ones are inside the loop
-                // We can infer this by looking at the solution
                 let totalEdges = 0;
                 for (let i = 0; i <= height; i++) {
                     for (let j = 0; j < width; j++) {
@@ -108,6 +106,9 @@
 
                 // Test zero-score distribution
                 testZeroScoreDistribution(puzzle);
+                
+                // Clean up
+                game.destroy();
             };
         }
 
@@ -212,8 +213,6 @@
                     if (puzzle.solution.vertical[row][col] === 1) score++;
                     if (puzzle.solution.vertical[row][col + 1] === 1) score++;
 
-                    // Only count cells that are inside (have non-zero score or are interior)
-                    // Actually, we should count all cells in the puzzle
                     scoreCounts[score]++;
                     totalCells++;
                 }
@@ -224,8 +223,6 @@
             log(`Score distribution: 0=${scoreCounts[0]}, 1=${scoreCounts[1]}, 2=${scoreCounts[2]}, 3=${scoreCounts[3]}, 4=${scoreCounts[4]}`, 'info');
             log(`Zero-score percentage: ${zeroPercent.toFixed(1)}%`, 'info');
 
-            // Note: The target is <15% of INSIDE cells, not total cells
-            // For this test we'll just check it's reasonable
             if (zeroPercent < 50) {
                 log('✓ PASS: Zero-score percentage is reasonable', 'pass');
             } else {
@@ -244,6 +241,10 @@
         canvas.id = 'testCanvas';
         canvas.style.display = 'none';
         document.body.appendChild(canvas);
+
+        // Bind button events
+        document.getElementById('runAllBtn').addEventListener('click', runAllTests);
+        document.getElementById('clearBtn').addEventListener('click', clearResults);
     </script>
 </body>
 </html>
