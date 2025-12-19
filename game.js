@@ -402,6 +402,7 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         if (carved.size === 0) {
             // First carve: must be outside edge cells
             candidates = getOutsideEdgeCells();
+            console.log(\`Worker: First carve - found \${candidates.length} outside edge candidates\`);
             if (candidates.length === 0) {
                 console.log(\`Worker: No outside edge cells available\`);
                 break;
@@ -410,6 +411,7 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             // All subsequent carves: must be adjacent to existing carved cells
             // This ensures carved cells form a connected path to the border
             candidates = getAdjacentToCarved();
+            console.log(\`Worker: Carve #\${carved.size + 1} - found \${candidates.length} adjacent candidates\`);
         }
 
         // If no candidates available at all, stop
@@ -432,6 +434,7 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
             // Don't carve if it would clear an entire row or column
             if (wouldClearRowOrColumn(row, col)) {
+                console.log(\`Worker: Rejecting carve at (\${row},\${col}) - would clear row or column\`);
                 continue;
             }
 
@@ -439,9 +442,12 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             inside[row][col] = false;
 
             // Check if this creates multiple disconnected loops
-            if (wouldCreateMultipleLoops()) {
+            // Only apply this check after we've carved a few cells, as early carving
+            // can have temporary connectivity issues that resolve themselves
+            if (carved.size >= 3 && wouldCreateMultipleLoops()) {
                 // Revert the carve
                 inside[row][col] = true;
+                console.log(\`Worker: Rejecting carve at (\${row},\${col}) - would create multiple loops\`);
                 continue;
             }
 
@@ -450,11 +456,13 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             if (carved.size >= 5 && wouldCreateLargeZeroRegion()) {
                 // Revert the carve
                 inside[row][col] = true;
+                console.log(\`Worker: Rejecting carve at (\${row},\${col}) - would create large zero region\`);
                 continue;
             }
 
             // Keep the cell carved
             carved.add(key);
+            console.log(\`Worker: Successfully carved cell at (\${row},\${col}), total carved: \${carved.size}\`);
             carved_this_iteration = true;
             consecutiveFailures = 0;
             break;
