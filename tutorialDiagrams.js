@@ -4,8 +4,8 @@ let modalInitialized = false;
 
 export function initTutorialDiagrams() {
     initModal();
-    drawValidExample();
-    drawInvalidExamples();
+    drawZeroExample();
+    drawInsideOutsideExample();
 }
 
 function initModal() {
@@ -67,8 +67,8 @@ function initModal() {
     modalInitialized = true;
 }
 
-function drawValidExample() {
-    const canvas = document.getElementById('tutorialValidCanvas');
+function drawZeroExample() {
+    const canvas = document.getElementById('tutorialZeroCanvas');
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
@@ -87,137 +87,131 @@ function drawValidExample() {
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Define which cells exist (L-shape: bottom-right is carved out)
-    const cellExists = [
-        [true, true, true],
-        [true, true, false]  // bottom-right carved out
-    ];
-
-    // Draw cell backgrounds
-    ctx.fillStyle = '#fafafa';
+    // Draw cell backgrounds - highlight the 0 cell with a different color
     for (let row = 0; row < gridHeight; row++) {
         for (let col = 0; col < gridWidth; col++) {
-            if (cellExists[row][col]) {
-                ctx.fillRect(
-                    padding + col * cellSize,
-                    padding + row * cellSize,
-                    cellSize,
-                    cellSize
-                );
+            // Middle cell (1,0) will have 0 - highlight it
+            if (row === 0 && col === 1) {
+                ctx.fillStyle = '#fff3cd'; // Light yellow highlight for 0 cell
+            } else {
+                ctx.fillStyle = '#fafafa';
             }
+            ctx.fillRect(
+                padding + col * cellSize,
+                padding + row * cellSize,
+                cellSize,
+                cellSize
+            );
         }
     }
 
-    // Draw grid lines (light) only for existing cells
+    // Draw grid lines (light)
     ctx.strokeStyle = '#ddd';
     ctx.lineWidth = 1;
-
-    // Draw borders of existing cells
     for (let row = 0; row < gridHeight; row++) {
         for (let col = 0; col < gridWidth; col++) {
-            if (cellExists[row][col]) {
-                const x = padding + col * cellSize;
-                const y = padding + row * cellSize;
-                ctx.strokeRect(x, y, cellSize, cellSize);
-            }
+            const x = padding + col * cellSize;
+            const y = padding + row * cellSize;
+            ctx.strokeRect(x, y, cellSize, cellSize);
         }
     }
 
     // Draw numbers in cells
-    // L-shape loop: numbers show how many sides are part of the loop
+    // The middle top cell has 0, loop goes around it
     const numbers = [
-        [2, 1, 3],
-        [2, 2, null]  // null for carved out cell
+        [2, 0, 2],
+        [2, 2, 2]
     ];
 
     ctx.font = 'bold 20px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#333';
 
     for (let row = 0; row < gridHeight; row++) {
         for (let col = 0; col < gridWidth; col++) {
             const num = numbers[row][col];
-            if (num !== null) {
-                const x = padding + (col + 0.5) * cellSize;
-                const y = padding + (row + 0.5) * cellSize;
-                ctx.fillText(num.toString(), x, y);
+            const x = padding + (col + 0.5) * cellSize;
+            const y = padding + (row + 0.5) * cellSize;
+            // Highlight 0 with a different color
+            if (num === 0) {
+                ctx.fillStyle = '#856404'; // Dark yellow/amber for 0
+            } else {
+                ctx.fillStyle = '#333';
             }
+            ctx.fillText(num.toString(), x, y);
         }
     }
 
-    // Draw the solution loop around the L-shape
+    // Draw the solution loop - goes around the entire grid except avoids
+    // touching any edge of the 0 cell
     ctx.strokeStyle = '#333';
     ctx.lineWidth = lineWidth;
     ctx.lineCap = 'round';
 
-    // The loop traces around the L-shape:
-    // Top edge (full width)
+    // Top-left cell top edge
     ctx.beginPath();
     ctx.moveTo(padding, padding);
-    ctx.lineTo(padding + gridWidth * cellSize, padding);
+    ctx.lineTo(padding + cellSize, padding);
     ctx.stroke();
 
-    // Right edge of top-right cell
+    // Top-right cell top edge
     ctx.beginPath();
-    ctx.moveTo(padding + gridWidth * cellSize, padding);
-    ctx.lineTo(padding + gridWidth * cellSize, padding + cellSize);
-    ctx.stroke();
-
-    // Inner horizontal edge (between top-right and carved corner)
-    ctx.beginPath();
-    ctx.moveTo(padding + gridWidth * cellSize, padding + cellSize);
-    ctx.lineTo(padding + 2 * cellSize, padding + cellSize);
-    ctx.stroke();
-
-    // Inner vertical edge (right side of cell [1,1])
-    ctx.beginPath();
-    ctx.moveTo(padding + 2 * cellSize, padding + cellSize);
-    ctx.lineTo(padding + 2 * cellSize, padding + gridHeight * cellSize);
-    ctx.stroke();
-
-    // Bottom edge (2 cells wide)
-    ctx.beginPath();
-    ctx.moveTo(padding + 2 * cellSize, padding + gridHeight * cellSize);
-    ctx.lineTo(padding, padding + gridHeight * cellSize);
+    ctx.moveTo(padding + 2 * cellSize, padding);
+    ctx.lineTo(padding + 3 * cellSize, padding);
     ctx.stroke();
 
     // Left edge (full height)
     ctx.beginPath();
-    ctx.moveTo(padding, padding + gridHeight * cellSize);
-    ctx.lineTo(padding, padding);
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, padding + 2 * cellSize);
     ctx.stroke();
 
-    // Draw vertices (dots) only for existing cell corners
-    ctx.fillStyle = '#333';
-    const drawnVertices = new Set();
+    // Right edge (full height)
+    ctx.beginPath();
+    ctx.moveTo(padding + 3 * cellSize, padding);
+    ctx.lineTo(padding + 3 * cellSize, padding + 2 * cellSize);
+    ctx.stroke();
 
-    for (let row = 0; row < gridHeight; row++) {
-        for (let col = 0; col < gridWidth; col++) {
-            if (cellExists[row][col]) {
-                // Draw all 4 corners of this cell
-                const corners = [
-                    [col, row], [col + 1, row],
-                    [col, row + 1], [col + 1, row + 1]
-                ];
-                for (const [c, r] of corners) {
-                    const key = `${c},${r}`;
-                    if (!drawnVertices.has(key)) {
-                        drawnVertices.add(key);
-                        const x = padding + c * cellSize;
-                        const y = padding + r * cellSize;
-                        ctx.beginPath();
-                        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-            }
+    // Bottom edge (full width)
+    ctx.beginPath();
+    ctx.moveTo(padding, padding + 2 * cellSize);
+    ctx.lineTo(padding + 3 * cellSize, padding + 2 * cellSize);
+    ctx.stroke();
+
+    // Inner edges going around the 0 cell
+    // Left side of 0 cell (vertical)
+    ctx.beginPath();
+    ctx.moveTo(padding + cellSize, padding);
+    ctx.lineTo(padding + cellSize, padding + cellSize);
+    ctx.stroke();
+
+    // Right side of 0 cell (vertical)
+    ctx.beginPath();
+    ctx.moveTo(padding + 2 * cellSize, padding);
+    ctx.lineTo(padding + 2 * cellSize, padding + cellSize);
+    ctx.stroke();
+
+    // Bottom of 0 cell connects to bottom row
+    ctx.beginPath();
+    ctx.moveTo(padding + cellSize, padding + cellSize);
+    ctx.lineTo(padding + 2 * cellSize, padding + cellSize);
+    ctx.stroke();
+
+    // Draw vertices (dots)
+    ctx.fillStyle = '#333';
+    for (let row = 0; row <= gridHeight; row++) {
+        for (let col = 0; col <= gridWidth; col++) {
+            const x = padding + col * cellSize;
+            const y = padding + row * cellSize;
+            ctx.beginPath();
+            ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 }
 
-function drawInvalidExamples() {
-    const canvas = document.getElementById('tutorialInvalidCanvas');
+function drawInsideOutsideExample() {
+    const canvas = document.getElementById('tutorialInsideOutsideCanvas');
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
@@ -225,27 +219,35 @@ function drawInvalidExamples() {
     const padding = 25;
     const dotRadius = 4;
     const lineWidth = 3;
-    const gridSize = 2;
-    const exampleWidth = cellSize * gridSize + padding * 2;
-    const gap = 40;
+    const gridWidth = 3;
+    const gridHeight = 3;
 
-    // Set canvas size for two examples side by side
-    canvas.width = exampleWidth * 2 + gap;
-    canvas.height = cellSize * gridSize + padding * 2;
+    // Set canvas size
+    canvas.width = cellSize * gridWidth + padding * 2;
+    canvas.height = cellSize * gridHeight + padding * 2;
 
     // Clear canvas
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // ===== Example 1: Non-closed shape (open ends) =====
-    const offset1 = 0;
+    // Define cells inside vs outside the loop
+    // Loop will go around the center cell, so center is "inside", edges are "outside"
+    const isInside = [
+        [false, false, false],
+        [false, true, false],
+        [false, false, false]
+    ];
 
-    // Draw cell backgrounds
-    ctx.fillStyle = '#fafafa';
-    for (let row = 0; row < gridSize; row++) {
-        for (let col = 0; col < gridSize; col++) {
+    // Draw cell backgrounds with different colors for inside vs outside
+    for (let row = 0; row < gridHeight; row++) {
+        for (let col = 0; col < gridWidth; col++) {
+            if (isInside[row][col]) {
+                ctx.fillStyle = '#d4edda'; // Light green for inside
+            } else {
+                ctx.fillStyle = '#e8f4fd'; // Light blue for outside
+            }
             ctx.fillRect(
-                offset1 + padding + col * cellSize,
+                padding + col * cellSize,
                 padding + row * cellSize,
                 cellSize,
                 cellSize
@@ -256,54 +258,75 @@ function drawInvalidExamples() {
     // Draw grid lines (light)
     ctx.strokeStyle = '#ddd';
     ctx.lineWidth = 1;
-    for (let i = 0; i <= gridSize; i++) {
-        ctx.beginPath();
-        ctx.moveTo(offset1 + padding, padding + i * cellSize);
-        ctx.lineTo(offset1 + padding + gridSize * cellSize, padding + i * cellSize);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(offset1 + padding + i * cellSize, padding);
-        ctx.lineTo(offset1 + padding + i * cellSize, padding + gridSize * cellSize);
-        ctx.stroke();
+    for (let row = 0; row < gridHeight; row++) {
+        for (let col = 0; col < gridWidth; col++) {
+            const x = padding + col * cellSize;
+            const y = padding + row * cellSize;
+            ctx.strokeRect(x, y, cellSize, cellSize);
+        }
     }
 
-    // Draw an open path (not closed) - an L shape with open ends
-    ctx.strokeStyle = '#c0392b';
+    // Draw numbers - cells both inside and outside have numbers
+    const numbers = [
+        [1, 2, 1],
+        [2, 4, 2],
+        [1, 2, 1]
+    ];
+
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let row = 0; row < gridHeight; row++) {
+        for (let col = 0; col < gridWidth; col++) {
+            const num = numbers[row][col];
+            const x = padding + (col + 0.5) * cellSize;
+            const y = padding + (row + 0.5) * cellSize;
+            // Use different colors for inside vs outside numbers
+            if (isInside[row][col]) {
+                ctx.fillStyle = '#155724'; // Dark green for inside
+            } else {
+                ctx.fillStyle = '#004085'; // Dark blue for outside
+            }
+            ctx.fillText(num.toString(), x, y);
+        }
+    }
+
+    // Draw the solution loop around the center cell
+    ctx.strokeStyle = '#333';
     ctx.lineWidth = lineWidth;
     ctx.lineCap = 'round';
 
-    // Top edge
+    // Loop around center cell (1,1)
+    // Top edge of center cell
     ctx.beginPath();
-    ctx.moveTo(offset1 + padding, padding);
-    ctx.lineTo(offset1 + padding + gridSize * cellSize, padding);
+    ctx.moveTo(padding + cellSize, padding + cellSize);
+    ctx.lineTo(padding + 2 * cellSize, padding + cellSize);
     ctx.stroke();
 
-    // Right edge (only top half)
+    // Right edge of center cell
     ctx.beginPath();
-    ctx.moveTo(offset1 + padding + gridSize * cellSize, padding);
-    ctx.lineTo(offset1 + padding + gridSize * cellSize, padding + cellSize);
+    ctx.moveTo(padding + 2 * cellSize, padding + cellSize);
+    ctx.lineTo(padding + 2 * cellSize, padding + 2 * cellSize);
     ctx.stroke();
 
-    // Left edge (only top half)
+    // Bottom edge of center cell
     ctx.beginPath();
-    ctx.moveTo(offset1 + padding, padding);
-    ctx.lineTo(offset1 + padding, padding + cellSize);
+    ctx.moveTo(padding + 2 * cellSize, padding + 2 * cellSize);
+    ctx.lineTo(padding + cellSize, padding + 2 * cellSize);
     ctx.stroke();
 
-    // Draw open end indicators (small circles at open ends)
-    ctx.fillStyle = '#c0392b';
+    // Left edge of center cell
     ctx.beginPath();
-    ctx.arc(offset1 + padding + gridSize * cellSize, padding + cellSize, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(offset1 + padding, padding + cellSize, 6, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(padding + cellSize, padding + 2 * cellSize);
+    ctx.lineTo(padding + cellSize, padding + cellSize);
+    ctx.stroke();
 
     // Draw vertices (dots)
     ctx.fillStyle = '#333';
-    for (let row = 0; row <= gridSize; row++) {
-        for (let col = 0; col <= gridSize; col++) {
-            const x = offset1 + padding + col * cellSize;
+    for (let row = 0; row <= gridHeight; row++) {
+        for (let col = 0; col <= gridWidth; col++) {
+            const x = padding + col * cellSize;
             const y = padding + row * cellSize;
             ctx.beginPath();
             ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
@@ -311,97 +334,15 @@ function drawInvalidExamples() {
         }
     }
 
-    // Label
-    ctx.font = 'bold 12px Arial';
+    // Add labels
+    ctx.font = 'bold 11px Arial';
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#c0392b';
-    ctx.fillText('Not closed', offset1 + padding + cellSize, padding + gridSize * cellSize + 15);
 
-    // ===== Example 2: Intersecting/branching lines =====
-    const offset2 = exampleWidth + gap;
+    // Inside label
+    ctx.fillStyle = '#155724';
+    ctx.fillText('Inside', padding + 1.5 * cellSize, padding + gridHeight * cellSize + 15);
 
-    // Draw cell backgrounds
-    ctx.fillStyle = '#fafafa';
-    for (let row = 0; row < gridSize; row++) {
-        for (let col = 0; col < gridSize; col++) {
-            ctx.fillRect(
-                offset2 + padding + col * cellSize,
-                padding + row * cellSize,
-                cellSize,
-                cellSize
-            );
-        }
-    }
-
-    // Draw grid lines (light)
-    ctx.strokeStyle = '#ddd';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= gridSize; i++) {
-        ctx.beginPath();
-        ctx.moveTo(offset2 + padding, padding + i * cellSize);
-        ctx.lineTo(offset2 + padding + gridSize * cellSize, padding + i * cellSize);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(offset2 + padding + i * cellSize, padding);
-        ctx.lineTo(offset2 + padding + i * cellSize, padding + gridSize * cellSize);
-        ctx.stroke();
-    }
-
-    // Draw branching lines (3 lines meeting at one vertex)
-    ctx.strokeStyle = '#c0392b';
-    ctx.lineWidth = lineWidth;
-    ctx.lineCap = 'round';
-
-    // Three lines meeting at center-top vertex
-    const centerX = offset2 + padding + cellSize;
-    const topY = padding;
-
-    // Line going left
-    ctx.beginPath();
-    ctx.moveTo(offset2 + padding, topY);
-    ctx.lineTo(centerX, topY);
-    ctx.stroke();
-
-    // Line going right
-    ctx.beginPath();
-    ctx.moveTo(centerX, topY);
-    ctx.lineTo(offset2 + padding + gridSize * cellSize, topY);
-    ctx.stroke();
-
-    // Line going down from center
-    ctx.beginPath();
-    ctx.moveTo(centerX, topY);
-    ctx.lineTo(centerX, padding + cellSize);
-    ctx.stroke();
-
-    // Highlight the problematic vertex with a warning circle
-    ctx.fillStyle = '#c0392b';
-    ctx.beginPath();
-    ctx.arc(centerX, topY, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('!', centerX, topY);
-
-    // Draw vertices (dots)
-    ctx.fillStyle = '#333';
-    for (let row = 0; row <= gridSize; row++) {
-        for (let col = 0; col <= gridSize; col++) {
-            if (!(row === 0 && col === 1)) { // Skip the problematic vertex
-                const x = offset2 + padding + col * cellSize;
-                const y = padding + row * cellSize;
-                ctx.beginPath();
-                ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-    }
-
-    // Label
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#c0392b';
-    ctx.fillText('Branching', offset2 + padding + cellSize, padding + gridSize * cellSize + 15);
+    // Outside label
+    ctx.fillStyle = '#004085';
+    ctx.fillText('Outside', padding + 0.5 * cellSize, padding - 10);
 }
