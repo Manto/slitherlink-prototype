@@ -316,8 +316,11 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
         // Selection strategy:
         // 1. First carve: MUST be on outside edge (border cells)
-        // 2. All subsequent carves: MUST be adjacent to already carved cells
-        // This ensures all carved cells are connected to the border
+        // 2. All subsequent carves: Can be either:
+        //    - Adjacent to already carved cells (maintaining connectivity), OR
+        //    - Any cell on the outside edge (border cells)
+        // This ensures all carved cells are connected to the border while allowing
+        // more flexibility in carving patterns
         if (carved.size === 0) {
             // First carve: must be outside edge cells
             candidates = getOutsideEdgeCells();
@@ -327,10 +330,26 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
                 break;
             }
         } else {
-            // All subsequent carves: must be adjacent to existing carved cells
-            // This ensures carved cells form a connected path to the border
-            candidates = getAdjacentToCarved();
-            console.log(\`Worker: Carve #\${carved.size + 1} - found \${candidates.length} adjacent candidates\`);
+            // Subsequent carves: combine adjacent cells and boundary cells
+            const adjacentCells = getAdjacentToCarved();
+            const boundaryCells = getOutsideEdgeCells();
+
+            // Merge both lists, removing duplicates
+            const candidateSet = new Set();
+            for (const [r, c] of adjacentCells) {
+                candidateSet.add(\`\${r},\${c}\`);
+            }
+            for (const [r, c] of boundaryCells) {
+                candidateSet.add(\`\${r},\${c}\`);
+            }
+
+            // Convert back to array of [row, col] pairs
+            candidates = Array.from(candidateSet).map(key => {
+                const [r, c] = key.split(',').map(Number);
+                return [r, c];
+            });
+
+            console.log(\`Worker: Carve #\${carved.size + 1} - found \${adjacentCells.length} adjacent + \${boundaryCells.length} boundary = \${candidates.length} total candidates\`);
         }
 
         // If no candidates available at all, stop
