@@ -522,8 +522,8 @@ function selectClues(allNumbers, width, height) {
         }
     }
 
-    // Phase 2: Ensure every 3x3 region has at least one clue
-    const regionSize = 3;
+    // Phase 2: Ensure every 2x2 region has at least one clue
+    const regionSize = 2;
     for (let regionRow = 0; regionRow < height; regionRow += regionSize) {
         for (let regionCol = 0; regionCol < width; regionCol += regionSize) {
             let hasClue = false;
