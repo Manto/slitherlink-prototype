@@ -258,6 +258,42 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return false;
     };
 
+    // Helper function to count cells with score 0 (no loop edges around them)
+    const countZeroScoreCells = () => {
+        // Build the loop with current inside state
+        const tempH = Array(height + 1).fill(null).map(() => Array(width).fill(0));
+        const tempV = Array(height).fill(null).map(() => Array(width + 1).fill(0));
+
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (inside[row][col]) {
+                    if (row === 0 || !inside[row - 1][col]) tempH[row][col] = 1;
+                    if (row === height - 1 || !inside[row + 1][col]) tempH[row + 1][col] = 1;
+                    if (col === 0 || !inside[row][col - 1]) tempV[row][col] = 1;
+                    if (col === width - 1 || !inside[row][col + 1]) tempV[row][col + 1] = 1;
+                }
+            }
+        }
+
+        // Count cells with score 0
+        let zeroCount = 0;
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (inside[row][col]) {
+                    let count = 0;
+                    if (tempH[row][col] === 1) count++;
+                    if (tempH[row + 1][col] === 1) count++;
+                    if (tempV[row][col] === 1) count++;
+                    if (tempV[row][col + 1] === 1) count++;
+                    if (count === 0) {
+                        zeroCount++;
+                    }
+                }
+            }
+        }
+        return zeroCount;
+    };
+
     // Helper function to check if inside cells form multiple disconnected regions (multiple loops)
     const wouldCreateMultipleLoops = () => {
         // Find all inside cells
@@ -350,6 +386,35 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             });
 
             console.log(\`Worker: Carve #\${carved.size + 1} - found \${adjacentCells.length} adjacent + \${boundaryCells.length} boundary = \${candidates.length} total candidates\`);
+        }
+
+        // Prioritize candidates that reduce the number of 0-score cells
+        const currentZeroCount = countZeroScoreCells();
+        const zeroReducingCandidates = [];
+
+        for (const [r, c] of candidates) {
+            const key = \`\${r},\${c}\`;
+            // Skip if already carved or not inside
+            if (carved.has(key) || !inside[r][c]) continue;
+
+            // Tentatively carve to check zero count
+            inside[r][c] = false;
+            const newZeroCount = countZeroScoreCells();
+            inside[r][c] = true; // Revert
+
+            // If this carve reduces zero-score cells, add to priority list
+            if (newZeroCount < currentZeroCount) {
+                zeroReducingCandidates.push([r, c]);
+            }
+        }
+
+        // If we have candidates that reduce zero-score cells, use those
+        // Otherwise, use the original candidates
+        if (zeroReducingCandidates.length > 0) {
+            candidates = zeroReducingCandidates;
+            console.log(\`Worker: Prioritizing \${candidates.length} candidates that reduce 0-score cells (current: \${currentZeroCount})\`);
+        } else {
+            console.log(\`Worker: No candidates reduce 0-score cells (current: \${currentZeroCount}), using all \${candidates.length} candidates\`);
         }
 
         // If no candidates available at all, stop
