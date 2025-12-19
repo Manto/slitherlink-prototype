@@ -126,8 +126,8 @@ function drawValidExample() {
     // Draw numbers in cells
     // L-shape loop: numbers show how many sides are part of the loop
     const numbers = [
-        [2, 1, 3],
-        [2, 2, null]  // null for carved out cell
+        [null, 1, 3],
+        [2, null, 2]  // null for carved out cell
     ];
 
     ctx.font = 'bold 20px Arial';
