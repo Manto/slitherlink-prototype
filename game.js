@@ -9,45 +9,30 @@ class SlitherlinkGame {
         this.lineWidth = 4;
         this.padding = 30; // Padding around the grid
 
-        // Current puzzle
-        this.currentPuzzleIndex = 0;
-
         // Initialize Web Worker for puzzle generation using inline worker (works with file:// protocol)
         this.puzzleWorker = this.createInlineWorker();
         this.puzzleWorker.onmessage = (e) => this.handleWorkerResponse(e.data);
 
-        // Initialize with the puzzle from the image
-        this.puzzles = [
-            {
-                width: 6,
-                height: 6,
-                numbers: [
-                    [null, null, null, 2, null, null],
-                    [null, 2, 2, 2, null, 2],
-                    [null, 0, null, null, 2, null],
-                    [null, 2, null, 2, 0, null],
-                    [null, null, null, null, 3, null],
-                    [null, null, null, null, null, null]
-                ]
-            },
-            // Additional puzzle for variety
-            {
-                width: 5,
-                height: 5,
-                numbers: [
-                    [null, 2, null, 2, null],
-                    [3, null, null, null, 2],
-                    [null, null, 2, null, null],
-                    [2, null, null, null, 3],
-                    [null, 2, null, 2, null]
-                ]
-            }
-        ];
+        // Initialize with temporary empty state (will be replaced by generated puzzle)
+        this.gridWidth = 6;
+        this.gridHeight = 6;
+        this.numbers = Array(6).fill(null).map(() => Array(6).fill(null));
+        this.solution = null;
 
-        this.loadPuzzle(this.currentPuzzleIndex);
+        // Initialize edge states
+        this.horizontalEdges = Array(this.gridHeight + 1).fill(null)
+            .map(() => Array(this.gridWidth).fill(0));
+        this.verticalEdges = Array(this.gridHeight).fill(null)
+            .map(() => Array(this.gridWidth + 1).fill(0));
+
         this.setupCanvas();
         this.setupEventListeners();
         this.draw();
+
+        // Generate initial puzzle
+        this.showMessage('Generating puzzle...', 'info');
+        console.log('Starting initial puzzle generation...');
+        this.puzzleWorker.postMessage({ width: 6, height: 6 });
     }
 
     createInlineWorker() {
@@ -560,20 +545,6 @@ function selectClues(allNumbers, width, height) {
     return clues;
 }
 `;
-    }
-
-    loadPuzzle(index) {
-        const puzzle = this.puzzles[index];
-        this.gridWidth = puzzle.width;
-        this.gridHeight = puzzle.height;
-        this.numbers = puzzle.numbers;
-
-        // Initialize edge states
-        // 0 = empty, 1 = line, 2 = X mark
-        this.horizontalEdges = Array(this.gridHeight + 1).fill(null)
-            .map(() => Array(this.gridWidth).fill(0));
-        this.verticalEdges = Array(this.gridHeight).fill(null)
-            .map(() => Array(this.gridWidth + 1).fill(0));
     }
 
     setupCanvas() {
