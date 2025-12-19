@@ -10,19 +10,46 @@ function initModal() {
     const tutorialBtn = document.getElementById('tutorialBtn');
     const closeBtn = document.getElementById('modalCloseBtn');
 
-    if (!modal || !tutorialBtn || !closeBtn) return;
+    if (!modal || !tutorialBtn || !closeBtn) {
+        console.error('Modal elements not found:', { modal, tutorialBtn, closeBtn });
+        return;
+    }
 
-    tutorialBtn.addEventListener('click', () => {
+    function openModal() {
         modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal() {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    // Ensure modal starts hidden
+    closeModal();
+
+    tutorialBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openModal();
     });
 
-    closeBtn.addEventListener('click', () => {
-        modal.classList.remove('active');
+    closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeModal();
     });
 
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
-            modal.classList.remove('active');
+            closeModal();
+        }
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
         }
     });
 }
