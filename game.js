@@ -1,4 +1,21 @@
 class SlitherlinkGame {
+    setBoardSize(size) {
+        this.gridWidth = size;
+        this.gridHeight = size;
+        this.numbers = Array(size).fill(null).map(() => Array(size).fill(null));
+
+        // Initialize edge states
+        this.horizontalEdges = Array(size + 1).fill(null)
+            .map(() => Array(size).fill(0));
+        this.verticalEdges = Array(size).fill(null)
+            .map(() => Array(size + 1).fill(0));
+    }
+
+    getSelectedBoardSize() {
+        const select = document.getElementById('boardSize');
+        return parseInt(select.value);
+    }
+
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
@@ -13,17 +30,9 @@ class SlitherlinkGame {
         this.puzzleWorker = this.createInlineWorker();
         this.puzzleWorker.onmessage = (e) => this.handleWorkerResponse(e.data);
 
-        // Initialize with temporary empty state (will be replaced by generated puzzle)
-        this.gridWidth = 6;
-        this.gridHeight = 6;
-        this.numbers = Array(6).fill(null).map(() => Array(6).fill(null));
+        // Initialize with default board size (5x5)
+        this.setBoardSize(5);
         this.solution = null;
-
-        // Initialize edge states
-        this.horizontalEdges = Array(this.gridHeight + 1).fill(null)
-            .map(() => Array(this.gridWidth).fill(0));
-        this.verticalEdges = Array(this.gridHeight).fill(null)
-            .map(() => Array(this.gridWidth + 1).fill(0));
 
         this.setupCanvas();
         this.setupEventListeners();
@@ -32,7 +41,8 @@ class SlitherlinkGame {
         // Generate initial puzzle
         this.showMessage('Generating puzzle...', 'info');
         console.log('Starting initial puzzle generation...');
-        this.puzzleWorker.postMessage({ width: 6, height: 6 });
+        const size = this.getSelectedBoardSize();
+        this.puzzleWorker.postMessage({ width: size, height: size });
     }
 
     createInlineWorker() {
@@ -600,6 +610,7 @@ function selectClues(allNumbers, width, height) {
             this.handleClick(e, 'right');
         });
 
+        document.getElementById('boardSize').addEventListener('change', () => this.handleBoardSizeChange());
         document.getElementById('clearBtn').addEventListener('click', () => this.clearBoard());
         document.getElementById('checkBtn').addEventListener('click', () => this.checkSolution());
         document.getElementById('showSolutionBtn').addEventListener('click', () => this.showSolution());
@@ -773,6 +784,13 @@ function selectClues(allNumbers, width, height) {
         this.ctx.stroke();
     }
 
+    handleBoardSizeChange() {
+        const newSize = this.getSelectedBoardSize();
+        this.setBoardSize(newSize);
+        this.setupCanvas();
+        this.nextPuzzle();
+    }
+
     clearBoard() {
         this.horizontalEdges = Array(this.gridHeight + 1).fill(null)
             .map(() => Array(this.gridWidth).fill(0));
@@ -811,7 +829,8 @@ function selectClues(allNumbers, width, height) {
         console.log('Starting puzzle generation in worker...');
 
         // Send generation request to worker (non-blocking)
-        this.puzzleWorker.postMessage({ width: 6, height: 6 });
+        const size = this.getSelectedBoardSize();
+        this.puzzleWorker.postMessage({ width: size, height: size });
     }
 
     handleWorkerResponse(newPuzzle) {
