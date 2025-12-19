@@ -152,6 +152,61 @@ h1 {
     color: #667eea;
 }
 
+/* Solved Modal styles */
+.solved-modal-content {
+    text-align: center;
+    padding: 40px 30px;
+}
+
+.solved-modal-content h2 {
+    color: #28a745;
+    margin-bottom: 20px;
+    font-size: 2em;
+}
+
+.solved-message {
+    margin-bottom: 30px;
+}
+
+.solved-message p {
+    font-size: 1.3em;
+    color: #333;
+    margin: 0;
+}
+
+.solved-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.play-again-btn {
+    background: #28a745 !important;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.play-again-btn:hover {
+    background: #218838 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
+
+.close-solved-btn {
+    background: #6c757d !important;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.close-solved-btn:hover {
+    background: #5a6268 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+}
+
 .game-container {
     display: flex;
     justify-content: center;
