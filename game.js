@@ -9,45 +9,30 @@ class SlitherlinkGame {
         this.lineWidth = 4;
         this.padding = 30; // Padding around the grid
 
-        // Current puzzle
-        this.currentPuzzleIndex = 0;
-
         // Initialize Web Worker for puzzle generation using inline worker (works with file:// protocol)
         this.puzzleWorker = this.createInlineWorker();
         this.puzzleWorker.onmessage = (e) => this.handleWorkerResponse(e.data);
 
-        // Initialize with the puzzle from the image
-        this.puzzles = [
-            {
-                width: 6,
-                height: 6,
-                numbers: [
-                    [null, null, null, 2, null, null],
-                    [null, 2, 2, 2, null, 2],
-                    [null, 0, null, null, 2, null],
-                    [null, 2, null, 2, 0, null],
-                    [null, null, null, null, 3, null],
-                    [null, null, null, null, null, null]
-                ]
-            },
-            // Additional puzzle for variety
-            {
-                width: 5,
-                height: 5,
-                numbers: [
-                    [null, 2, null, 2, null],
-                    [3, null, null, null, 2],
-                    [null, null, 2, null, null],
-                    [2, null, null, null, 3],
-                    [null, 2, null, 2, null]
-                ]
-            }
-        ];
+        // Initialize with temporary empty state (will be replaced by generated puzzle)
+        this.gridWidth = 6;
+        this.gridHeight = 6;
+        this.numbers = Array(6).fill(null).map(() => Array(6).fill(null));
+        this.solution = null;
 
-        this.loadPuzzle(this.currentPuzzleIndex);
+        // Initialize edge states
+        this.horizontalEdges = Array(this.gridHeight + 1).fill(null)
+            .map(() => Array(this.gridWidth).fill(0));
+        this.verticalEdges = Array(this.gridHeight).fill(null)
+            .map(() => Array(this.gridWidth + 1).fill(0));
+
         this.setupCanvas();
         this.setupEventListeners();
         this.draw();
+
+        // Generate initial puzzle
+        this.showMessage('Generating puzzle...', 'info');
+        console.log('Starting initial puzzle generation...');
+        this.puzzleWorker.postMessage({ width: 6, height: 6 });
     }
 
     createInlineWorker() {
@@ -203,17 +188,18 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return array;
     };
 
-    // Get all available cells (not just edges)
-    const getAllAvailableCells = () => {
-        const available = [];
+    // Get cells on the outside edge of the grid (for first carve)
+    const getOutsideEdgeCells = () => {
+        const edgeCells = [];
         for (let row = 0; row < height; row++) {
             for (let col = 0; col < width; col++) {
-                if (inside[row][col]) {
-                    available.push([row, col]);
+                if (inside[row][col] &&
+                    (row === 0 || row === height - 1 || col === 0 || col === width - 1)) {
+                    edgeCells.push([row, col]);
                 }
             }
         }
-        return available;
+        return edgeCells;
     };
 
     // Get cells adjacent to carved cells
@@ -238,36 +224,6 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return adjacent;
     };
 
-    // Get cells NOT adjacent to carved cells
-    const getNonAdjacentCells = () => {
-        const nonAdjacent = [];
-        const adjacentSet = new Set();
-
-        // Mark all cells adjacent to carved cells
-        for (const key of carved) {
-            const [r, c] = key.split(',').map(Number);
-            const neighbors = [
-                [r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]
-            ];
-            for (const [nr, nc] of neighbors) {
-                if (nr >= 0 && nr < height && nc >= 0 && nc < width) {
-                    adjacentSet.add(\`\${nr},\${nc}\`);
-                }
-            }
-        }
-
-        // Get all cells that are NOT adjacent to carved cells
-        for (let row = 0; row < height; row++) {
-            for (let col = 0; col < width; col++) {
-                const key = \`\${row},\${col}\`;
-                if (inside[row][col] && !adjacentSet.has(key) && !carved.has(key)) {
-                    nonAdjacent.push([row, col]);
-                }
-            }
-        }
-        return nonAdjacent;
-    };
-
     // Helper function to check if removing a cell would clear an entire row or column
     const wouldClearRowOrColumn = (r, c) => {
         // Check if this is the last cell in its row
@@ -287,9 +243,9 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         return false;
     };
 
-    // Helper function to check if carving would create connected regions of >2 cells with score 0
-    const wouldCreateLargeZeroRegion = () => {
-        // First, rebuild the loop with current inside state
+    // Helper function to count cells with score 0 (no loop edges around them)
+    const countZeroScoreCells = () => {
+        // Build the loop with current inside state
         const tempH = Array(height + 1).fill(null).map(() => Array(width).fill(0));
         const tempV = Array(height).fill(null).map(() => Array(width + 1).fill(0));
 
@@ -304,8 +260,8 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
             }
         }
 
-        // Find all cells with score 0
-        const zeroScoreCells = [];
+        // Count cells with score 0
+        let zeroCount = 0;
         for (let row = 0; row < height; row++) {
             for (let col = 0; col < width; col++) {
                 if (inside[row][col]) {
@@ -315,57 +271,56 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
                     if (tempV[row][col] === 1) count++;
                     if (tempV[row][col + 1] === 1) count++;
                     if (count === 0) {
-                        zeroScoreCells.push([row, col]);
+                        zeroCount++;
                     }
                 }
             }
         }
+        return zeroCount;
+    };
 
-        // Check connected components of zero-score cells
-        const zeroVisited = new Set();
-        for (const [startRow, startCol] of zeroScoreCells) {
-            const key = \`\${startRow},\${startCol}\`;
-            if (zeroVisited.has(key)) continue;
-
-            // BFS to find connected component size
-            const queue = [[startRow, startCol]];
-            zeroVisited.add(key);
-            let componentSize = 1;
-
-            while (queue.length > 0) {
-                const [r, c] = queue.shift();
-                const neighbors = [
-                    [r - 1, c],
-                    [r + 1, c],
-                    [r, c - 1],
-                    [r, c + 1]
-                ];
-
-                for (const [nr, nc] of neighbors) {
-                    const nKey = \`\${nr},\${nc}\`;
-                    if (nr >= 0 && nr < height && nc >= 0 && nc < width &&
-                        inside[nr][nc] && !zeroVisited.has(nKey)) {
-                        // Check if neighbor also has score 0
-                        let nCount = 0;
-                        if (tempH[nr][nc] === 1) nCount++;
-                        if (tempH[nr + 1][nc] === 1) nCount++;
-                        if (tempV[nr][nc] === 1) nCount++;
-                        if (tempV[nr][nc + 1] === 1) nCount++;
-                        if (nCount === 0) {
-                            zeroVisited.add(nKey);
-                            queue.push([nr, nc]);
-                            componentSize++;
-                        }
-                    }
+    // Helper function to check if inside cells form multiple disconnected regions (multiple loops)
+    const wouldCreateMultipleLoops = () => {
+        // Find all inside cells
+        const insideCells = [];
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                if (inside[row][col]) {
+                    insideCells.push([row, col]);
                 }
-            }
-
-            if (componentSize > 2) {
-                return true; // Found a connected region with >2 zero-score cells
             }
         }
 
-        return false;
+        // If no inside cells, that's fine (no loops yet)
+        if (insideCells.length === 0) return false;
+
+        // Check if all inside cells are connected
+        const visited = new Set();
+        const queue = [insideCells[0]];
+        const startKey = \`\${insideCells[0][0]},\${insideCells[0][1]}\`;
+        visited.add(startKey);
+
+        while (queue.length > 0) {
+            const [r, c] = queue.shift();
+            const neighbors = [
+                [r - 1, c],
+                [r + 1, c],
+                [r, c - 1],
+                [r, c + 1]
+            ];
+
+            for (const [nr, nc] of neighbors) {
+                const nKey = \`\${nr},\${nc}\`;
+                if (nr >= 0 && nr < height && nc >= 0 && nc < width &&
+                    inside[nr][nc] && !visited.has(nKey)) {
+                    visited.add(nKey);
+                    queue.push([nr, nc]);
+                }
+            }
+        }
+
+        // If visited count doesn't match inside cells count, we have multiple regions
+        return visited.size !== insideCells.length;
     };
 
     // Remove cells iteratively
@@ -380,21 +335,71 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
         let row, col;
         let candidates = [];
 
-        // 50% chance: carve adjacent to already carved cell
-        // 50% chance: carve a non-adjacent cell (fresh region)
+        // Selection strategy:
+        // 1. First carve: MUST be on outside edge (border cells)
+        // 2. All subsequent carves: Can be either:
+        //    - Adjacent to already carved cells (maintaining connectivity), OR
+        //    - Any cell on the outside edge (border cells)
+        // This ensures all carved cells are connected to the border while allowing
+        // more flexibility in carving patterns
         if (carved.size === 0) {
-            // First carve: pick any cell
-            candidates = getAllAvailableCells();
-        } else if (Math.random() < 0.5) {
-            // Try to carve adjacent to existing carved cells
-            candidates = getAdjacentToCarved();
-        } else {
-            // Try to carve non-adjacent (start new region)
-            candidates = getNonAdjacentCells();
-            // If no non-adjacent cells available, fall back to adjacent
+            // First carve: must be outside edge cells
+            candidates = getOutsideEdgeCells();
+            console.log(\`Worker: First carve - found \${candidates.length} outside edge candidates\`);
             if (candidates.length === 0) {
-                candidates = getAdjacentToCarved();
+                console.log(\`Worker: No outside edge cells available\`);
+                break;
             }
+        } else {
+            // Subsequent carves: combine adjacent cells and boundary cells
+            const adjacentCells = getAdjacentToCarved();
+            const boundaryCells = getOutsideEdgeCells();
+
+            // Merge both lists, removing duplicates
+            const candidateSet = new Set();
+            for (const [r, c] of adjacentCells) {
+                candidateSet.add(\`\${r},\${c}\`);
+            }
+            for (const [r, c] of boundaryCells) {
+                candidateSet.add(\`\${r},\${c}\`);
+            }
+
+            // Convert back to array of [row, col] pairs
+            candidates = Array.from(candidateSet).map(key => {
+                const [r, c] = key.split(',').map(Number);
+                return [r, c];
+            });
+
+            console.log(\`Worker: Carve #\${carved.size + 1} - found \${adjacentCells.length} adjacent + \${boundaryCells.length} boundary = \${candidates.length} total candidates\`);
+        }
+
+        // Prioritize candidates that reduce the number of 0-score cells
+        const currentZeroCount = countZeroScoreCells();
+        const zeroReducingCandidates = [];
+
+        for (const [r, c] of candidates) {
+            const key = \`\${r},\${c}\`;
+            // Skip if already carved or not inside
+            if (carved.has(key) || !inside[r][c]) continue;
+
+            // Tentatively carve to check zero count
+            inside[r][c] = false;
+            const newZeroCount = countZeroScoreCells();
+            inside[r][c] = true; // Revert
+
+            // If this carve reduces zero-score cells, add to priority list
+            if (newZeroCount < currentZeroCount) {
+                zeroReducingCandidates.push([r, c]);
+            }
+        }
+
+        // If we have candidates that reduce zero-score cells, use those
+        // Otherwise, use the original candidates
+        if (zeroReducingCandidates.length > 0) {
+            candidates = zeroReducingCandidates;
+            console.log(\`Worker: Prioritizing \${candidates.length} candidates that reduce 0-score cells (current: \${currentZeroCount})\`);
+        } else {
+            console.log(\`Worker: No candidates reduce 0-score cells (current: \${currentZeroCount}), using all \${candidates.length} candidates\`);
         }
 
         // If no candidates available at all, stop
@@ -417,22 +422,26 @@ function generateCarvingLoop(width, height, horizontal, vertical) {
 
             // Don't carve if it would clear an entire row or column
             if (wouldClearRowOrColumn(row, col)) {
+                console.log(\`Worker: Rejecting carve at (\${row},\${col}) - would clear row or column\`);
                 continue;
             }
 
             // Tentatively carve the cell to test constraints
             inside[row][col] = false;
 
-            // Check if this creates a large zero-score region (only after initial carving)
-            // We skip this check for the first few carves since a full grid has many connected zeros
-            if (carved.size >= 5 && wouldCreateLargeZeroRegion()) {
+            // Check if this creates multiple disconnected loops
+            // Only apply this check after we've carved a few cells, as early carving
+            // can have temporary connectivity issues that resolve themselves
+            if (carved.size >= 3 && wouldCreateMultipleLoops()) {
                 // Revert the carve
                 inside[row][col] = true;
+                console.log(\`Worker: Rejecting carve at (\${row},\${col}) - would create multiple loops\`);
                 continue;
             }
 
             // Keep the cell carved
             carved.add(key);
+            console.log(\`Worker: Successfully carved cell at (\${row},\${col}), total carved: \${carved.size}\`);
             carved_this_iteration = true;
             consecutiveFailures = 0;
             break;
@@ -494,6 +503,10 @@ function extractNumbersFromSolution(width, height, horizontal, vertical) {
 
 function selectClues(allNumbers, width, height) {
     const clues = Array(height).fill(null).map(() => Array(width).fill(null));
+    const totalCells = width * height;
+    const maxClues = Math.floor(totalCells * 0.5); // Maximum 50% of cells can have clues
+
+    // Phase 1: Initial random selection based on number value
     for (let row = 0; row < height; row++) {
         for (let col = 0; col < width; col++) {
             const num = allNumbers[row][col];
@@ -508,7 +521,9 @@ function selectClues(allNumbers, width, height) {
             }
         }
     }
-    const regionSize = 3;
+
+    // Phase 2: Ensure every 2x2 region has at least one clue
+    const regionSize = 2;
     for (let regionRow = 0; regionRow < height; regionRow += regionSize) {
         for (let regionCol = 0; regionCol < width; regionCol += regionSize) {
             let hasClue = false;
@@ -533,23 +548,42 @@ function selectClues(allNumbers, width, height) {
             }
         }
     }
+
+    // Phase 3: Enforce 50% maximum constraint
+    // Count current clues
+    let clueCount = 0;
+    const cluePositions = [];
+    for (let row = 0; row < height; row++) {
+        for (let col = 0; col < width; col++) {
+            if (clues[row][col] !== null) {
+                clueCount++;
+                cluePositions.push([row, col]);
+            }
+        }
+    }
+
+    // If we have too many clues, randomly remove the excess
+    if (clueCount > maxClues) {
+        const toRemove = clueCount - maxClues;
+        console.log(\`Worker: Reducing clues from \${clueCount} to \${maxClues} (removing \${toRemove})\`);
+
+        // Shuffle clue positions to randomly select which ones to remove
+        for (let i = cluePositions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [cluePositions[i], cluePositions[j]] = [cluePositions[j], cluePositions[i]];
+        }
+
+        // Remove excess clues
+        for (let i = 0; i < toRemove; i++) {
+            const [row, col] = cluePositions[i];
+            clues[row][col] = null;
+        }
+    }
+
+    console.log(\`Worker: Final clue count: \${maxClues} / \${totalCells} cells (\${((maxClues / totalCells) * 100).toFixed(1)}%)\`);
     return clues;
 }
 `;
-    }
-
-    loadPuzzle(index) {
-        const puzzle = this.puzzles[index];
-        this.gridWidth = puzzle.width;
-        this.gridHeight = puzzle.height;
-        this.numbers = puzzle.numbers;
-
-        // Initialize edge states
-        // 0 = empty, 1 = line, 2 = X mark
-        this.horizontalEdges = Array(this.gridHeight + 1).fill(null)
-            .map(() => Array(this.gridWidth).fill(0));
-        this.verticalEdges = Array(this.gridHeight).fill(null)
-            .map(() => Array(this.gridWidth + 1).fill(0));
     }
 
     setupCanvas() {
