@@ -95,18 +95,21 @@ h1 {
     justify-content: center;
 }
 
+.type-selector,
 .size-selector {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
+.type-selector label,
 .size-selector label {
     font-weight: 600;
     color: #333;
     font-size: 16px;
 }
 
+.type-selector select,
 .size-selector select {
     background: white;
     border: 2px solid #667eea;
@@ -119,10 +122,12 @@ h1 {
     font-weight: 600;
 }
 
+.type-selector select:hover,
 .size-selector select:hover {
     border-color: #5568d3;
 }
 
+.type-selector select:focus,
 .size-selector select:focus {
     outline: none;
     border-color: #5568d3;
