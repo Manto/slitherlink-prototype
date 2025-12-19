@@ -9,22 +9,6 @@
 <body>
     <div class="container">
         <h1>Slitherlink</h1>
-        <div class="instructions">
-            <div class="tutorial-section">
-                <div class="tutorial-example">
-                    <canvas id="tutorialValidCanvas"></canvas>
-                    <p class="tutorial-caption">Draw a <strong>closed loop</strong>. Numbers show how many sides of that cell are part of the loop.</p>
-                </div>
-                <div class="tutorial-example">
-                    <canvas id="tutorialInvalidCanvas"></canvas>
-                    <p class="tutorial-caption"><strong>Not allowed:</strong> Open ends or branching paths.</p>
-                </div>
-            </div>
-            <div class="controls-hint">
-                <span><strong>Left click:</strong> Draw line</span>
-                <span><strong>Right click:</strong> Mark X</span>
-            </div>
-        </div>
         <div class="game-container">
             <canvas id="gameCanvas"></canvas>
         </div>
@@ -60,10 +44,30 @@
                 <button id="clearBtn">Clear Board</button>
                 <button id="checkBtn">Check Solution</button>
                 <button id="showSolutionBtn">Show Solution</button>
+                <button id="tutorialBtn">Tutorial</button>
             </div>
         </div>
         <div id="message" class="message"></div>
     </div>
+
+    <!-- Tutorial Modal -->
+    <div id="tutorialModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" id="modalCloseBtn">&times;</button>
+            <h2>How to Play</h2>
+            <div class="tutorial-section">
+                <div class="tutorial-example">
+                    <canvas id="tutorialValidCanvas"></canvas>
+                    <p class="tutorial-caption">Draw a <strong>closed loop</strong>. Numbers show how many sides of that cell are part of the loop.</p>
+                </div>
+                <div class="tutorial-example">
+                    <canvas id="tutorialInvalidCanvas"></canvas>
+                    <p class="tutorial-caption"><strong>Not allowed:</strong> Open ends or branching paths.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="game.js?v=1.0.0"></script>
 </body>
 </html>
