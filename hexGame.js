@@ -185,12 +185,16 @@ export class HexSlitherlink {
         this.ctx.font = 'bold 20px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillStyle = '#333';
         
         for (const cell of this.cells) {
             const key = this.cellKey(cell.q, cell.r);
             const num = this.numbers[key];
             if (num !== null && num !== undefined) {
+                // Count active edges around this cell
+                const edgeCount = this.countCellEdges(cell.q, cell.r);
+                // Use dark green if satisfied, otherwise default color
+                this.ctx.fillStyle = (edgeCount === num) ? '#2e7d32' : '#333';
+                
                 const center = this.axialToPixel(cell.q, cell.r);
                 this.ctx.fillText(num.toString(), center.x, center.y);
             }
@@ -267,6 +271,16 @@ export class HexSlitherlink {
         this.ctx.moveTo(x + size, y - size);
         this.ctx.lineTo(x - size, y + size);
         this.ctx.stroke();
+    }
+
+    countCellEdges(q, r) {
+        let count = 0;
+        const neighbors = this.getNeighbors(q, r);
+        for (const neighbor of neighbors) {
+            const key = this.edgeKey(q, r, neighbor.q, neighbor.r);
+            if (this.edges[key] === 1) count++;
+        }
+        return count;
     }
 
     // ============================================
