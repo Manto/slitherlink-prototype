@@ -120,16 +120,46 @@ export class SlitherlinkGame {
             }
         }
 
+        // Draw faint grid lines for empty edges
+        this.ctx.strokeStyle = '#e0e0e0';
+        this.ctx.lineWidth = 1;
+        for (let row = 0; row <= this.gridHeight; row++) {
+            for (let col = 0; col < this.gridWidth; col++) {
+                const x1 = this.padding + col * this.cellSize;
+                const x2 = this.padding + (col + 1) * this.cellSize;
+                const y = this.padding + row * this.cellSize;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x1, y);
+                this.ctx.lineTo(x2, y);
+                this.ctx.stroke();
+            }
+        }
+        for (let row = 0; row < this.gridHeight; row++) {
+            for (let col = 0; col <= this.gridWidth; col++) {
+                const x = this.padding + col * this.cellSize;
+                const y1 = this.padding + row * this.cellSize;
+                const y2 = this.padding + (row + 1) * this.cellSize;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y1);
+                this.ctx.lineTo(x, y2);
+                this.ctx.stroke();
+            }
+        }
+
         // Draw numbers
         this.ctx.font = 'bold 24px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillStyle = '#333';
 
         for (let row = 0; row < this.gridHeight; row++) {
             for (let col = 0; col < this.gridWidth; col++) {
                 const num = this.numbers[row][col];
                 if (num !== null) {
+                    // Count active edges around this cell
+                    const edgeCount = this.countCellEdges(row, col);
+                    // Use dark green if satisfied, otherwise default color
+                    this.ctx.fillStyle = (edgeCount === num) ? '#2e7d32' : '#333';
+                    
                     const x = this.padding + (col + 0.5) * this.cellSize;
                     const y = this.padding + (row + 0.5) * this.cellSize;
                     this.ctx.fillText(num.toString(), x, y);
@@ -235,6 +265,19 @@ export class SlitherlinkGame {
         this.ctx.moveTo(x + size, y - size);
         this.ctx.lineTo(x - size, y + size);
         this.ctx.stroke();
+    }
+
+    countCellEdges(row, col) {
+        let count = 0;
+        // Top edge
+        if (this.horizontalEdges[row][col] === 1) count++;
+        // Bottom edge
+        if (this.horizontalEdges[row + 1][col] === 1) count++;
+        // Left edge
+        if (this.verticalEdges[row][col] === 1) count++;
+        // Right edge
+        if (this.verticalEdges[row][col + 1] === 1) count++;
+        return count;
     }
 
     // ============================================
